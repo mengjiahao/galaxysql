@@ -40,6 +40,8 @@ import java.util.Properties;
 
 /**
  * @author chenghui.lch
+ *
+ * SQL 访问系统表 inst_config 表;
  */
 public class InstConfigAccessor extends AbstractAccessor {
     private static final Logger logger = LoggerFactory.getLogger(InstConfigAccessor.class);

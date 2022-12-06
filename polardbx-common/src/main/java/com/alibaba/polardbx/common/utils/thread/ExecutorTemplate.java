@@ -27,6 +27,7 @@ import java.util.concurrent.Future;
 
 public class ExecutorTemplate {
 
+    /** ExecutorCompletionService 比 ExecutorService 可提前获取已完成的任务结果; */
     private volatile ExecutorCompletionService completionService = null;
     private volatile List<Future> futures = null;
 

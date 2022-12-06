@@ -24,6 +24,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * (jobId, taskId), 注意还记录有 task numPhyObjectsDone 等状态标志;
+ */
 public class PhyDdlExecutionRecord {
 
     public PhyDdlExecutionRecord(final long jobId, final long taskId, final int numPhyObjectsTotal) {

@@ -22,8 +22,18 @@ import com.alibaba.polardbx.gms.metadb.lease.LeaseRecord;
 
 import java.util.Optional;
 
+/**
+ * 租约管理;
+ */
 public class LeaseManagerImpl implements LeaseManager {
 
+    /**
+     * 先删除 expired leaseKey ，再插入新的 leaseKey 到 metadb 的 lease 表;
+     * @param schemaName
+     * @param leaseKey
+     * @param ttlMillis
+     * @return
+     */
     @Override
     public Optional<LeaseRecord> acquire(String schemaName, String leaseKey, long ttlMillis) {
         return new LeaseAccessDelegate<Optional<LeaseRecord>>(){
@@ -35,6 +45,7 @@ public class LeaseManagerImpl implements LeaseManager {
                     //todo 最好改成幂等的
                     return Optional.empty();
                 }
+                // 成功则获取 lease leader 信息
                 Optional<LeaseRecord> recordInDb = accessor.queryByHolderAndKey(LeaseRecord.getLeaseHolder(), leaseKey);
                 if(!recordInDb.isPresent()){
                     return Optional.empty();
@@ -44,6 +55,12 @@ public class LeaseManagerImpl implements LeaseManager {
         }.execute();
     }
 
+    /**
+     * 延长 lease 时间;
+     *
+     * @param leaseKey
+     * @return
+     */
     @Override
     public Optional<LeaseRecord> extend(String leaseKey) {
         return new LeaseAccessDelegate<Optional<LeaseRecord>>(){
@@ -72,6 +89,10 @@ public class LeaseManagerImpl implements LeaseManager {
         }.execute();
     }
 
+    /**
+     * 删除 (LeaseHolder, leaseKey);
+     * @param leaseKey
+     */
     @Override
     public void release(String leaseKey) {
         new LeaseAccessDelegate<Integer>(){

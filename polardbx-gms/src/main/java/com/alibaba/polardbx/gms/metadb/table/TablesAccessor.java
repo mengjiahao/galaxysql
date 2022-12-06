@@ -36,6 +36,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 在 metadb 访问系统表 tables;
+ */
 public class TablesAccessor extends AbstractAccessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TablesAccessor.class);

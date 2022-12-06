@@ -44,6 +44,10 @@ import java.util.concurrent.TimeUnit;
 import static com.alibaba.polardbx.common.ddl.newengine.DdlState.PAUSED_POLICY_VALUES;
 import static com.alibaba.polardbx.common.ddl.newengine.DdlState.ROLLBACK_PAUSED_POLICY_VALUES;
 
+/**
+ * 存储 DdlJob 任务 到 metadb 系统表 ddl_engine;
+ *
+ */
 public class DdlEngineAccessor extends AbstractAccessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DdlEngineAccessor.class);

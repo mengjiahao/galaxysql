@@ -32,7 +32,12 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
+ *
+ * 管理从 metadb 缓存的 db信息 allDbInfoMap;
+ * 默认有db: information_schema, polardbx, __cdc__;
+ *
  * @author chenghui.lch
+ *
  */
 public class DbInfoManager extends AbstractLifecycle {
 
@@ -50,6 +55,7 @@ public class DbInfoManager extends AbstractLifecycle {
     // sharding is the same as drds
     public static final String MODE_SHARDING = "sharding";
 
+    /** metadb db元数据缓存 */
     protected volatile Map<String, DbInfoRecord> allDbInfoMap = new TreeMap<>(CaseInsensitive.CASE_INSENSITIVE_ORDER);
     protected volatile Map<Long, DbInfoRecord> dbIdMap = new HashMap<>();
     protected static DbInfoManager instance = new DbInfoManager();
@@ -127,6 +133,13 @@ public class DbInfoManager extends AbstractLifecycle {
         return this.dbIdMap.get(dbId);
     }
 
+    /**
+     * create table tb1 (id INTEGER NOT NULL) 创建的 单库单表 返回false;
+     * 目前都是 drds，返回的是 false;
+     *
+     * @param dbName
+     * @return
+     */
     public boolean isNewPartitionDb(String dbName) {
         DbInfoRecord dbInfoRecord = allDbInfoMap.get(dbName);
         if (dbInfoRecord == null) {

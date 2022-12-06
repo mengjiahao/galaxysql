@@ -29,6 +29,9 @@ import org.junit.runners.MethodSorters;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+/**
+ * 从这里看DDL相关的test;
+ */
 @FixMethodOrder(value = MethodSorters.JVM)
 public class DdlStructureTest extends BaseDdlEngineTestCase {
 

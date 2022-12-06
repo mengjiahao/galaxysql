@@ -197,12 +197,16 @@ public final class ServerLoader extends AbstractLifecycle implements Lifecycle {
         logger.info("Global memory pool size: " + FileUtils.byteCountToDisplaySize(system.getGlobalMemoryLimit()));
     }
 
+    /**
+     * 从MetaDB读取元数据，并初始化实例级的系统组件;
+     */
     private void initPolarDbXComponents() {
         // Set private protocol port first(or we will fail to connect metaDB with Xproto).
         XConnectionManager.getInstance().setMetaDbPort(this.system.getMetaDbXprotoPort());
         XConnectionManager.getInstance().setStorageDbPort(this.system.getStorageDbXprotoPort());
 
         // Init metadb datasource
+        // 单例模式.
         MetaDbDataSource
             .initMetaDbDataSource(this.system.getMetaDbAddr(), this.system.getMetaDbName(),
                 this.system.getMetaDbProp(),

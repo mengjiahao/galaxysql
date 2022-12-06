@@ -34,7 +34,7 @@ public class IndexesInfoSchemaRecord implements SystemTableRecord {
     public String indexSchema;
     public String indexName;
     public long seqInIndex;
-    public String columnName;
+    public String columnName; // 代表 index 中一行
     public String collation;
     public long cardinality;
     public long subPart;

@@ -32,12 +32,26 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
+/**
+ * 存储有 Group -> DN;
+ *
+ */
 public class MyRepository extends AbstractLifecycle implements IRepository {
 
+    /**
+     * 单库单表:
+     * (key=Group[name=TEST_000005_GROUP,appName=test@polardbx-polardbx,schemaName=test,type=MYSQL_JDBC,atoms=[],properties={},unitName=<null>,enforceMaster=false],
+     * value=GroupExecutor [groupName=TEST_000005_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@3ae33602])
+     * */
     private transient LoadingCache<Group, IGroupExecutor> executors;
 
+    /**
+     * 单库单表:
+     * [DEFAULT_TXN_ISOLATION -> READ_COMMITTED]
+     */
     private RepositoryConfig config;
 
+    /** 获取 DN 连接信息 */
     private MyDataSourceGetter dsGetter = null;
     private String appName = "";
 
@@ -122,6 +136,11 @@ public class MyRepository extends AbstractLifecycle implements IRepository {
         executors.invalidate(group);
     }
 
+    /**
+     *
+     * @param groupName 物理分库名，比如 TEST_000000_GROUP；
+     * @return
+     */
     public TGroupDataSource getDataSource(String groupName) {
         return dsGetter.getDataSource(schemaName, groupName);
     }

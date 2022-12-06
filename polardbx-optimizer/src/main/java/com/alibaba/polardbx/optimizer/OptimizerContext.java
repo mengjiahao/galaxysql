@@ -79,6 +79,8 @@ public class OptimizerContext {
      *
      *  VAL: OptimizerContext
      * </pre>
+     * optimizerContextMap 会被并发修改；
+     * 用于请求当前使用的元数据;
      */
     private static Map<String, OptimizerContext> optimizerContextMap =
         new ConcurrentHashMap<String, OptimizerContext>();
@@ -99,16 +101,30 @@ public class OptimizerContext {
             .collect(Collectors.toList());
     }
 
-    // load context once when TDatSource init
+    /**
+     * load context once when TDatSource init
+     * @param context
+     */
     public static void loadContext(OptimizerContext context) {
         optimizerContextMap.put(context.getSchemaName().toLowerCase(), context);
         DefaultSchema.setSchemaName(context.getSchemaName());
     }
 
+    /**
+     * 设置 thread local 的 schemaName；
+     * @param context
+     */
     public static void setContext(OptimizerContext context) {
         DefaultSchema.setSchemaName(context.getSchemaName());
     }
 
+    /**
+     * 从并发的 optimizerContextMap 中获取 schemaName 对应的 OptimizerContext;
+     * 修改 OptimizerContext 内部数据结构怎么保证可见性？
+     *
+     * @param schemaName
+     * @return
+     */
     public static OptimizerContext getContext(String schemaName) {
         if (TStringUtil.isEmpty(schemaName)) {
             schemaName = DefaultSchema.getSchemaName();
@@ -120,6 +136,7 @@ public class OptimizerContext {
             schemaName = InformationSchema.NAME;
         }
         String schemaNameLowerCase = schemaName.toLowerCase();
+        // 通过 volatile 方式
         OptimizerContext optimizerContext = optimizerContextMap.get(schemaNameLowerCase);
         if (optimizerContext == null) {
             IServerConfigManager serverConfigManager = OptimizerHelper.getServerConfigManager();
@@ -155,10 +172,17 @@ public class OptimizerContext {
         this.matrix = matrix;
     }
 
+    /** 注意 schemaManager 不是 volatile，怎么保证可见性？*/
     public SchemaManager getLatestSchemaManager() {
         return schemaManager;
     }
 
+    /**
+     * 怎么安全更新这个 SchemaManager?
+     * synchronized 保护 OptimizerContext.getContext(schemaName) 不够吧；
+     *
+     * @param schemaManager
+     */
     public void setSchemaManager(SchemaManager schemaManager) {
         this.schemaManager = schemaManager;
     }

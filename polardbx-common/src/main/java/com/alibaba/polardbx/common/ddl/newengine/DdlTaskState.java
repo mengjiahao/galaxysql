@@ -20,7 +20,7 @@ public enum DdlTaskState {
 
     READY,
 
-    DIRTY,
+    DIRTY, // 准备执行
 
     SUCCESS,
 

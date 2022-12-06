@@ -32,6 +32,7 @@ import java.util.TreeMap;
 
 /**
  * @author chenghui.lch
+ * MetaDB jdbc:mysql 客户端连接配置;
  */
 public class GmsJdbcUtil {
 

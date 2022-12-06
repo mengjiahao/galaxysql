@@ -34,6 +34,7 @@ public class TStatement implements ITStatement {
     protected TDataSource ds;
     protected TConnection conn;
 
+    /** 当前请求的 executionContext */
     protected ExecutionContext executionContext = null;
     /**
      * 更新计数，如果执行了多次，那么这个值只会返回最后一次执行的结果。 如果是一个query，那么返回的数据应该是-1

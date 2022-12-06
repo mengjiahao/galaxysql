@@ -470,7 +470,14 @@ public class PersistentReadWriteLock {
 
     /**
      * 批量获取读锁和写锁
-     * readLocks和writeLocks不允许出现交集
+     * readLocks和writeLocks不允许出现交集;
+     *
+     * 先在metadb 系统表 read_write_lock 上 对读写范围涉及的database/table(有点层级锁的意思) 上读写锁，然后执行 func;
+     *
+     * @param schemaName test
+     * @param owner DDL_1534691155403341824
+     * @param readLockSet test
+     * @param writeLockSet test.tb1
      */
     public boolean tryReadWriteLockBatch(String schemaName,
                                          String owner,
@@ -481,12 +488,16 @@ public class PersistentReadWriteLock {
             throw new IllegalArgumentException("owner is empty");
         }
 
+        // readLockSet=(test), writeLockSet=(test.tb1)
         final Set<String> writeLocks = Sets.newHashSet(writeLockSet);
+        // readLocks = readLockSet - writeLockSet, 使得 读写集合不相交
         final Set<String> readLocks = Sets.newHashSet(Sets.difference(readLockSet, writeLockSet));
         boolean isSuccess = new ReadWriteLockAccessDelegate<Boolean>() {
             @Override
             protected Boolean invoke() {
                 try {
+                    // XConnection for XSession sid=1608 status=Ready from XClient of X-NIO-Client /127.0.0.1:55380 to /127.0.0.1:32886 to my_polarx@127.0.0.1:32886
+                    // 手动开启 JDBC 事务
                     MetaDbUtil.beginTransaction(connection);
                     if (CollectionUtils.isEmpty(readLocks) && CollectionUtils.isEmpty(writeLocks)) {
                         func.apply(connection);
@@ -497,9 +508,13 @@ public class PersistentReadWriteLock {
                     List<String> allLocks = Lists.newArrayList(Sets.union(readLocks, writeLocks));
                     List<ReadWriteLockRecord> currentLocks = new ArrayList<>(allLocks.size());
                     List<List<String>> allLocksPartition = Lists.partition(allLocks, 100);
+                    // XConnection for XSession sid=1608 status=Ready from XClient of X-NIO-Client /127.0.0.1:55380 to /127.0.0.1:32886 to my_polarx@127.0.0.1:32886
+                    // ReadWriteLockAccessor select for update 获取当前 metadb allLocks 信息到 currentLocks.
+                    // 相当于对读写范围涉及的database/table 上互斥锁;
                     allLocksPartition.forEach(e -> currentLocks.addAll(accessor.query(e, true)));
                     for (ReadWriteLockRecord record : currentLocks) {
                         //write lock held by other owner
+                        // 写写冲突
                         if (isWriteLock(record.type) && !isOwner(record, owner)) {
                             return false;
                         }
@@ -507,15 +522,19 @@ public class PersistentReadWriteLock {
                         if (isReadLock(record.type)
                             && !isOwner(record, owner)
                             && writeLocks.contains(record.resource)) {
+                            // 要写其他在读的话，写读冲突
                             return false;
                         }
                     }
 
+                    // 此 owner 当前已占有的锁信息
                     Set<String> acquiredReadLocks = getAcquiredReadLocks(currentLocks, owner);
                     Set<String> acquiredWriteLocks = getAcquiredWriteLocks(currentLocks, owner);
 
+                    // 写已经存在的就是 upgrade
                     Set<String> needToUpgrade =
                         Sets.intersection(writeLocks, acquiredReadLocks);
+                    // 已经写的不用再写了
                     Set<String> needToSkip =
                         Sets.union(acquiredWriteLocks, Sets.intersection(readLocks, acquiredReadLocks));
                     Set<String> needToAcquiredReadLocks =
@@ -535,19 +554,24 @@ public class PersistentReadWriteLock {
                     }
 
                     for (String r : needToUpgrade) {
+                        // 要升级的先删; 不会直接 update, 因为更新行可能不一样；
                         accessor.deleteByOwnerAndResourceAndType(owner, r, owner);
                     }
 
+                    /** 在metadb 系统表 read_write_lock 上读写锁 */
+                    // needToAcquiredReadLocks=[test]
                     List<ReadWriteLockRecord> readLockRecords = needToAcquiredReadLocks.stream().map(e -> {
                         ReadWriteLockRecord record = new ReadWriteLockRecord();
                         record.schemaName = schemaName;
                         record.owner = owner;
+                        // 上锁的库名或表名
                         record.resource = e;
                         record.type = owner;
                         return record;
                     }).collect(Collectors.toList());
                     accessor.insert(readLockRecords);
 
+                    // needToAcquiredWriteLocks=[test.tb1]
                     List<ReadWriteLockRecord> writeLockRecords =
                         Sets.union(needToUpgrade, needToAcquiredWriteLocks).stream().map(e -> {
                             ReadWriteLockRecord record = new ReadWriteLockRecord();
@@ -559,6 +583,7 @@ public class PersistentReadWriteLock {
                         }).collect(Collectors.toList());
                     accessor.insert(writeLockRecords);
 
+                    /** 执行 Function<Connection, Boolean> storeDdlRecord， 存储 DdlJob 任务 到 metadb 系统表 */
                     func.apply(connection);
 
                     MetaDbUtil.commit(connection);
@@ -662,6 +687,12 @@ public class PersistentReadWriteLock {
         return acquiredWriteLocks;
     }
 
+    /**
+     *
+     * @param currentLocks
+     * @param owner
+     * @return Set(resource)
+     */
     private Set<String> getAcquiredReadLocks(List<ReadWriteLockRecord> currentLocks, String owner) {
         Set<String> acquiredReadLocks = Sets.newHashSet();
         if (CollectionUtils.isNotEmpty(currentLocks)) {

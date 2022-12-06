@@ -35,6 +35,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ *
+ * 拥有 DN 的信息；
+ *
  * @author 梦实 2018年1月9日 下午3:46:12
  * @since 5.0.0
  */
@@ -59,6 +62,7 @@ public class TAtomDataSource extends AbstractTAtomDataSource {
     @Deprecated
     private boolean masterDB = true;
 
+    /** polardbx_dn_0 */
     private String dnId;
 
     public TAtomDataSource() {

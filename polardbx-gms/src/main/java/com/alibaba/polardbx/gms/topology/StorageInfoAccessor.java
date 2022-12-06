@@ -44,6 +44,7 @@ import java.util.Set;
 
 /**
  * @author chenghui.lch
+ * storage_info 表元数据, 存储在 MetaDB, 可SQL查询实例信息;
  */
 public class StorageInfoAccessor extends AbstractAccessor {
 

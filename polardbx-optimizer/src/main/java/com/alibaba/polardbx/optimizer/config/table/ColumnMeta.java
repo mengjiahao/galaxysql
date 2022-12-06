@@ -50,6 +50,7 @@ public class ColumnMeta implements Serializable {
 
     private String fullName;
 
+    /** 为什么使用单独的 Field？*/
     private Field field;
 
     private final ColumnStatus status;

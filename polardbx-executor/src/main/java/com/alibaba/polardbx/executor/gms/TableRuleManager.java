@@ -34,6 +34,11 @@ import java.util.Map;
 
 public class TableRuleManager {
 
+    /**
+     * 注意 从 metadb 获取 table rule 路由表 要更新 table;
+     * @param schemaName
+     * @param tableName
+     */
     public static void reload(String schemaName, String tableName) {
         TddlRule tddlRule = OptimizerContext.getContext(schemaName).getRuleManager().getTddlRule();
         tddlRule.addRule(tableName, true);

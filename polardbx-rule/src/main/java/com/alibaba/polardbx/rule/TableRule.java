@@ -59,6 +59,11 @@ import static com.alibaba.polardbx.common.ddl.newengine.DdlConstants.RANDOM_SUFF
  * 描述一个逻辑表怎样分库分表，允许指定逻辑表名和db/table的{@linkplain Rule}规则
  * <p>
  *
+ * 元数据记录 TablesExtRecord 可转换为 TableRule;
+ *
+ * 单库单表:
+ * (virtualTbName=tb0, dbNamePattern=TEST_SINGLE_GROUP, tbNamePattern=tb0_uf48);
+ *
  * @author linxuan
  * @author jianghang 2013-11-4 下午5:33:51
  * @since 5.0.0

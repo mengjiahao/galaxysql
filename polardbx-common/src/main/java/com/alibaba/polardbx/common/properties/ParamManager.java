@@ -26,6 +26,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 配置文件解析;
+ */
 public class ParamManager {
 
     public static final String PROPFILE_NAME = "tddl.properties";

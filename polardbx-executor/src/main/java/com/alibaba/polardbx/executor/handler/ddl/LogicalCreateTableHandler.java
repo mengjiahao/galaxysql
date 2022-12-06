@@ -77,18 +77,29 @@ import static com.alibaba.polardbx.common.exception.code.ErrorCode.ERR_PARTITION
 import static com.alibaba.polardbx.executor.ddl.job.task.cdc.CdcMarkUtil.buildExtendParameter;
 import static com.alibaba.polardbx.common.exception.code.ErrorCode.ERR_TABLE_ALREADY_EXISTS;
 
+/**
+ * 处理 create table DDL job 入口;
+ */
 public class LogicalCreateTableHandler extends LogicalCommonDdlHandler {
 
     public LogicalCreateTableHandler(IRepository repo) {
         super(repo);
     }
 
+    /**
+     * 注意 这里会生成 DDL 物理执行计划，因此会再次校验 partition的语法规则是否合法;
+     *
+     * @param logicalDdlPlan rel#275:LogicalCreateTable.DRDS.[].any(), 这里有逻辑执行计划，可理解为原始sql
+     * @param executionContext
+     * @return
+     */
     @Override
     protected DdlJob buildDdlJob(BaseDdlOperation logicalDdlPlan, ExecutionContext executionContext) {
         LogicalCreateTable logicalCreateTable = (LogicalCreateTable) logicalDdlPlan;
 
         SqlCreateTable sqlCreateTable = (SqlCreateTable) logicalCreateTable.relDdl.sqlNode;
         if (sqlCreateTable.getLikeTableName() != null) {
+            // create table ... like
             final String sourceCreateTableSql = generateCreateTableSqlForLike(sqlCreateTable, executionContext);
             MySqlCreateTableStatement stmt =
                 (MySqlCreateTableStatement) FastsqlUtils.parseSql(sourceCreateTableSql).get(0);
@@ -149,12 +160,14 @@ public class LogicalCreateTableHandler extends LogicalCommonDdlHandler {
         }
 
         //todo: this place support DEFAULT
+        /** 逻辑执行计划 转为 物理执行计划 */
         logicalCreateTable.prepareData(executionContext);
         boolean isNewPartDb = DbInfoManager.getInstance().isNewPartitionDb(logicalCreateTable.getSchemaName());
         if (!isNewPartDb) {
             if (logicalCreateTable.isWithGsi()) {
                 return buildCreateTableWithGsiJob(logicalCreateTable, executionContext);
             } else {
+                /** 无全局索引走这里 */
                 return buildCreateTableJob(logicalCreateTable, executionContext);
             }
         } else {
@@ -253,6 +266,27 @@ public class LogicalCreateTableHandler extends LogicalCommonDdlHandler {
         return false;
     }
 
+    /**
+     *
+     * @param logicalCreateTable
+     * @param executionContext
+     * @return
+     *
+     *
+     * 单库单表:
+     * CreateTablePreparedData(tableMeta = TableMeta[digest = test.tb1 # version : 0, tableGroupDigest = < null >, schemaDigest = < null >, id = 0, schemaName = test, tableName = tb1, status = PUBLIC, version = 0, engine = < null >, flag = 0, primaryIndexes = { _drds_implicit_pk_ = [indexMeta name : tb1.__drds_implicit_id_
+     *keyColumn :
+     *tb1._drds_implicit_id_
+     *valueColumn :
+     *] }, secondaryIndexes = { }, primaryKeys = { _drds_implicit_id_ = tb1._drds_implicit_id_ }, columns = { }, allColumns = { id = tb1.id, name = tb1.name, _drds_implicit_id_ = tb1._drds_implicit_id_ }, allColumnsOrderByDefined = [tb1.id, tb1.name, tb1._drds_implicit_id_], hasPrimaryKey = true, tableColumnMeta = < null >, autoUpdateColumns = < null >, gsiTableMetaBean = < null >, gsiPublished = < null >, complexTaskOutlineRecord = < null >, complexTaskTableMetaBean = < null >, initializerExpressionFactory = com.alibaba.polardbx.optimizer.config.table.TableMeta$TableMetaInitializerExpressionFactory @ d6eccd2, isAutoPartition = false, partitionInfo = < null >, newPartitionInfo = < null >, fileMetaSet = < null >, flatFileMetas = < null >, localPartitionDefinitionInfo = < null > ], ifNotExists = false, shadow = false, autoPartition = false, broadcast = false, sharding = false, timestampColumnDefault = false, binaryColumnDefaultValues = { }, dbPartitionBy = null, dbPartitions = null, tbPartitionBy = null, tbPartitions = null, partitioning = null, localPartitioning = null, tableGroupName = null, joinGroupName = null, partBoundExprInfo = { }, tableDefinition = null, tableRule = null, partitionInfo = null, localPartitionDefinitionInfo = null, locality =, loadTableSchema = null, loadTableName = null, archiveTableName = null, gsi = false, sourceSql = create table tb1 ( id INTEGER NOT NULL, name VARCHAR ( 120)), needToGetTableGroupLock=false);
+     *
+     * PhysicalPlanData:
+     * PhysicalPlan{table: tb1, sql: CREATE TABLE ? (	id INTEGER NOT NULL,	name VARCHAR(120),	_drds_implicit_id_ bigint AUTO_INCREMENT,	PRIMARY KEY (_drds_implicit_id_)), topology: {TEST_SINGLE_GROUP=[[tb1_IEe1]]};
+     *
+     * DdlJob:
+     * 单库单表/分库分表:
+     * ExecutableDdlJob4CreateTable(createTableValidateTask=null, createTableAddTablesExtMetaTask=null, createTablePhyDdlTask=null, createTableAddTablesMetaTask=null, cdcDdlMarkTask=null, createTableShowTableMetaTask=null, tableSyncTask=null)
+     */
     private DdlJob buildCreateTableJob(LogicalCreateTable logicalCreateTable, ExecutionContext executionContext) {
         CreateTablePreparedData createTablePreparedData = logicalCreateTable.getCreateTablePreparedData();
 

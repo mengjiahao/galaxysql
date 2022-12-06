@@ -142,9 +142,12 @@ public class DdlJobManagerUtils {
     /**
      * Reload physical tables done to cache from the system table.
      *
+     * 设置 PhyDdlExecutionRecord.phyObjectsDone;
+     *
      * @param phyDdlExecutionRecord Current DDL context
      */
     public static void reloadPhyTablesDone(PhyDdlExecutionRecord phyDdlExecutionRecord) {
+        // 从 metadb ddl_engine_task 获取 DdlTask
         DdlEngineTaskRecord record =
             SCHEDULER_MANAGER.fetchTaskRecord(phyDdlExecutionRecord.getJobId(), phyDdlExecutionRecord.getTaskId());
 
@@ -204,6 +207,7 @@ public class DdlJobManagerUtils {
 
     /**
      * Reset the whole list of physical objects done for a DDL job and also update the progress.
+     * 更新 ddl_engine_task task已经完成;
      */
     public static int resetPhyTablesDone(PhyDdlExecutionRecord phyDdlExecutionRecord) {
         // Build new object done list.

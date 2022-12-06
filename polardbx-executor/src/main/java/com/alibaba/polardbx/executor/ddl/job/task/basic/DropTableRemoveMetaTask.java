@@ -30,6 +30,9 @@ import lombok.Getter;
 
 import java.sql.Connection;
 
+/**
+ * 删除 metadb.table
+ */
 @Getter
 @TaskName(name = "DropTableRemoveMetaTask")
 public class DropTableRemoveMetaTask extends BaseGmsTask {
@@ -46,6 +49,7 @@ public class DropTableRemoveMetaTask extends BaseGmsTask {
         FailPoint.injectRandomExceptionFromHint(executionContext);
         FailPoint.injectRandomSuspendFromHint(executionContext);
 
+        /** 删除表后 清空 PlanCache */
         CommonMetaChanger.finalOperationsOnSuccess(schemaName, logicalTableName);
     }
 

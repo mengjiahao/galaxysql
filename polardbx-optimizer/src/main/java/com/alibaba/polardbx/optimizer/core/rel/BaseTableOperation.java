@@ -57,7 +57,10 @@ public abstract class BaseTableOperation extends BaseQueryOperation {
 
     private LockMode lockMode = LockMode.UNDEF;
 
-    // the logical plan that produce the current phy relnode
+    /**
+     * the logical plan that produce the current phy relnode;
+     *
+     **/
     protected RelNode logicalPlan;
 
     protected BaseTableOperation(RelOptCluster cluster, RelTraitSet traitSet) {

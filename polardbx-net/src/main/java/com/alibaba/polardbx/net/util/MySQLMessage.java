@@ -20,6 +20,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
 /**
+ * MySQLMessage 包装网络传来的 二进制数据，可进行读取字段；
  * @author xianmao.hexm
  */
 public class MySQLMessage {

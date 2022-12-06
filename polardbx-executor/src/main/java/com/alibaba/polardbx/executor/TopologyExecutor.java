@@ -40,12 +40,17 @@ public class TopologyExecutor extends AbstractLifecycle implements ITopologyExec
 
     protected String dataNode = "localhost";
 
+    /** ServerExecutor(poolSize=256)*/
     protected ServerThreadPool executorService;
 
     protected TopologyHandler handler;
 
     @Override
     public Cursor execByExecPlanNode(RelNode relNode, ExecutionContext executionContext) {
+        /**
+         * 单库单表/分库分表:
+         * TEST_SINGLE_GROUP
+         */
         String targetGroup = ExecUtils.getTargetDbGruop(relNode, executionContext);
         return getGroupExecutor(targetGroup).execByExecPlanNode(relNode, executionContext);
     }

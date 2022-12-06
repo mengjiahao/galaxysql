@@ -25,6 +25,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TimeZone;
 
+/**
+ * sun.util.calendar.ZoneInfo[id="Asia/Shanghai",offset=28800000,dstSavings=0,useDaylight=false,transitions=31,lastRule=null]
+ */
 public class InternalTimeZone {
 
     public static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();

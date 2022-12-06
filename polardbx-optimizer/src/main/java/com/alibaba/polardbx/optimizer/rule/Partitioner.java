@@ -86,6 +86,8 @@ import java.util.stream.Collectors;
 import static org.apache.calcite.sql.SqlKind.IS_NULL;
 
 /**
+ * 有逻辑分库分表规则 TddlRule？
+ *
  * @author chenmo.cm
  */
 public class Partitioner extends AbstractLifecycle {
@@ -145,6 +147,18 @@ public class Partitioner extends AbstractLifecycle {
         }
     }
 
+    /**
+     * 找到 分表信息；
+     *
+     * @param logicTable
+     * @param isWrite
+     * @param forceAllowFullTableScan
+     * @param comparatives
+     * @param param
+     * @param calcParams
+     * @param ec
+     * @return
+     */
     public List<TargetDB> shard(String logicTable, boolean isWrite, boolean forceAllowFullTableScan,
                                 Map<String, Comparative> comparatives, Map<Integer, ParameterContext> param,
                                 Map<String, Object> calcParams, ExecutionContext ec) {

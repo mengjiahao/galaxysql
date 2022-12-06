@@ -21,6 +21,9 @@ import com.alibaba.polardbx.optimizer.context.ExecutionContext;
 
 import java.sql.Connection;
 
+/**
+ * Task 是 Job 的分段任务;
+ */
 public interface DdlTask {
 
     Long getJobId();
@@ -50,6 +53,7 @@ public interface DdlTask {
 
     /**
      * Execute the DDL task.
+     * 注意执行参数只有 ExecutionContext;
      */
     void execute(ExecutionContext executionContext);
 

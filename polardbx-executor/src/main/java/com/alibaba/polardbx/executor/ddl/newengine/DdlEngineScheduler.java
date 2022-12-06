@@ -55,6 +55,11 @@ import static com.alibaba.polardbx.common.ddl.newengine.DdlConstants.*;
 import static com.alibaba.polardbx.common.properties.ConnectionProperties.LOGICAL_DDL_PARALLELISM;
 import static com.alibaba.polardbx.gms.topology.SystemDbHelper.DEFAULT_DB_NAME;
 
+/**
+ * DDL引擎作为守护进程仅在Leader CN节点运行，轮询DDLJobQueue，队列非空即触发DDL Job的调度执行过程。
+ * DDL引擎中维持着两级队列，即实例级(dispatcher)和库级的DDLJob队列(schedulers)，从而保证逻辑库间DDL并发执行，互不干扰;
+ *
+ */
 public class DdlEngineScheduler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DdlEngineScheduler.class);
@@ -63,6 +68,10 @@ public class DdlEngineScheduler {
 
     /**
      * Instance-level DDL request dispatcher.
+     * DdlEngineRequester -[notifyLeader(DdlRequest)]-> DdlEngineScheduler -[notify(DdlRequest)]
+     * -[ddlRequestTransitQueue(DdlRequest)]-> DdlJobDispatcher -[fetch from metadb (DdlEngineRecord), dispatch]
+     * -> ddlJobDeliveryQueue(DdlEngineRecord) -> DdlJobScheduler
+     * -[schedule]-> DdlJobSchedulerConfig.completionService -> DdlJobExecutor;
      */
     private final ExecutorService ddlDispatcherThread = DdlHelper.createSingleThreadPool(DDL_DISPATCHER_NAME);
     private final BlockingQueue<DdlRequest> ddlRequestTransitQueue = new LinkedBlockingQueue<>();
@@ -70,6 +79,7 @@ public class DdlEngineScheduler {
 
     /**
      * Database-level DDL request schedulers.
+     * 从 ddlJobDeliveryQueue 获取 DdlJob 执行;
      */
     private final ExecutorService ddlSchedulerThread = DdlHelper.createSingleThreadPool(DDL_SCHEDULER_NAME);
 
@@ -90,6 +100,7 @@ public class DdlEngineScheduler {
     private final AtomicLong performVersion = new AtomicLong(0L);
     private final AtomicBoolean suspending = new AtomicBoolean(false);
 
+    /** 存在则表示自己拥有 ddl leader lease */
     private final AtomicReference<LeaseRecord> ddlLeaderLease = new AtomicReference<>();
 
     private DdlEngineScheduler() {
@@ -103,6 +114,8 @@ public class DdlEngineScheduler {
                 4L,
                 TimeUnit.HOURS
             );
+
+            /** 每 30s/2 更新 leader lease */
             ddlLeaderElectionThread.scheduleAtFixedRate(
                 AsyncTask.build(new DdlLeaderElectionRunner()),
                 0L,
@@ -116,6 +129,12 @@ public class DdlEngineScheduler {
         return INSTANCE;
     }
 
+    /**
+     * 注册 DdlJobScheduler 使用的 schemaName 对应的 DdlJobExecutor线程池;
+     *
+     * @param schemaName
+     * @param executor
+     */
     public void register(String schemaName, ServerThreadPool executor) {
         if (DdlHelper.isRunnable(schemaName)) {
             String lowerCaseSchemaName = schemaName.toLowerCase();
@@ -137,12 +156,14 @@ public class DdlEngineScheduler {
     }
 
     public void notify(DdlRequest ddlRequest) {
+        // message=". DDL Job Request: schema - test, jobIds - 1534691155403341824,"
         StringBuilder message = new StringBuilder();
         message.append(". DDL Job Request: schema - ").append(ddlRequest.getSchemaName());
         message.append(", jobIds - ");
         for (Long jobId : ddlRequest.getJobIds()) {
             message.append(jobId).append(",");
         }
+        /** 加入ddlRequest 到实例级别的 dispatcher */
         offerQueue(ddlRequestTransitQueue, ddlRequest, message.toString());
     }
 
@@ -208,6 +229,9 @@ public class DdlEngineScheduler {
         }
     }
 
+    /**
+     * 获取 DDL leader lease;
+     */
     private class DdlLeaderElectionRunner implements Runnable {
 
         private final LeaseManager leaseManager = new LeaseManagerImpl();
@@ -218,12 +242,14 @@ public class DdlEngineScheduler {
                 SQLRecorderLogger.ddlEngineLogger.debug(
                     "current ddlLeaderLease info:" + (ddlLeaderLease.get()==null? "empty":ddlLeaderLease.get().info()));
                 if (DdlHelper.hasDdlLeadership()){
+                    // 如果是 DDL leader 就延长租约
                     Optional<LeaseRecord> optionalLeaseRecord = leaseManager.extend(DDL_LEADER_KEY);
                     if(optionalLeaseRecord.isPresent()){
                         ddlLeaderLease.set(optionalLeaseRecord.get());
                         SQLRecorderLogger.ddlEngineLogger.debug("success extend DDL_LEADER:" + optionalLeaseRecord.get().info());
                     }
                 } else {
+                    // 否则尝试 获取租约
                     Optional<LeaseRecord> optionalLeaseRecord =
                         leaseManager.acquire(DEFAULT_DB_NAME, DDL_LEADER_KEY, DDL_LEADER_TTL_IN_MILLIS);
                     if(optionalLeaseRecord.isPresent()){
@@ -237,6 +263,11 @@ public class DdlEngineScheduler {
         }
     }
 
+    /**
+     * DDL-Engine-Dispatcher 线程执行;
+     * 执行 实例级别队列 ddlRequestTransitQueue 的任务;
+     * 从 metadb 获取 DdlEngineRecord, 然后再分发到 ddlJobDeliveryQueue;
+     */
     private class DdlJobDispatcher implements Runnable {
 
         private final DdlJobManager ddlJobManager = new DdlJobManager();
@@ -249,6 +280,7 @@ public class DdlEngineScheduler {
             while (true) {
                 // Process DDL jobs only on the leader node.
                 if (!ExecUtils.hasLeadership(null)) {
+                    // 只有 Leader CN 节点执行 DdlJob，其他节点还不是Leader时啥也不做
                     DdlHelper.waitToContinue(MORE_WAITING_TIME);
                     continue;
                 }
@@ -281,6 +313,10 @@ public class DdlEngineScheduler {
             }
         }
 
+        /**
+         * 从 metadb 获取 DdlEngineRecord，加入到 ddlJobDeliveryQueue;
+         * @param ddlRequest
+         */
         private void processRequest(DdlRequest ddlRequest) {
             List<DdlEngineRecord> records = ddlJobManager.fetchRecords(ddlRequest.getJobIds());
             dispatch(records);
@@ -344,6 +380,10 @@ public class DdlEngineScheduler {
             }
         }
 
+        /**
+         * 将 record 加入到 ddlJobDeliveryQueue;
+         * @param record
+         */
         private void uniqueOffer(DdlEngineRecord record) {
             if(record == null || record.isSubJob()){
                 return;
@@ -359,6 +399,7 @@ public class DdlEngineScheduler {
                     }
                     boolean success = ddlJobDeliveryQueue.offer(record);
                     if (!success) {
+                        // 这不是无界队列吗?
                         LOGGER.error(String.format(
                             "No enough space in the queue. schemaName:%s, jobId:%s", schemaName, record.jobId));
                     }
@@ -371,6 +412,11 @@ public class DdlEngineScheduler {
 
     }
 
+    /**
+     * (maxParallelism, semaphore, completionService);
+     * 默认 maxParallelism(4), semaphore(4);
+     * completionService=ServerExecutor(poolSize=256);
+     */
     private class DdlJobSchedulerConfig{
         private String schemaName;
         private int maxParallelism;
@@ -397,6 +443,10 @@ public class DdlEngineScheduler {
         }
     }
 
+    /**
+     * DDL-Engine-Scheduler 线程执行;
+     * 从 ddlJobDeliveryQueue 获取 DdlJob, schedule 到 DdlJobExecutor线程池 异步执行;
+     */
     private class DdlJobScheduler implements Runnable {
 
         private volatile boolean scheduleSuspended;
@@ -468,6 +518,12 @@ public class DdlEngineScheduler {
             return true;
         }
 
+        /**
+         * 通过 activeSchemaDdlConfig 获取 shema 对应的 DdlJobSchedulerConfig.completionService 执行 DdlJobExecutor 异步任务;
+         *
+         * @param record
+         * @throws InterruptedException
+         */
         private void schedule(DdlEngineRecord record) throws InterruptedException {
             if (record == null || !ExecUtils.hasLeadership(null) || record.isSubJob()) {
                 return;
@@ -508,6 +564,9 @@ public class DdlEngineScheduler {
         }
     }
 
+    /**
+     * schema 对应的 线程池 ServerExecutor线程池中 执行 DdlJob;
+     */
     private class DdlJobExecutor implements Callable<Boolean> {
 
         private final Semaphore semaphore;
@@ -538,7 +597,9 @@ public class DdlEngineScheduler {
                 }
                 return true;
             } finally {
+                // 注意释放信号量
                 semaphore.release();
+                // 增加执行的version
                 performVersion.incrementAndGet();
                 FailPoint.inject(() -> {
                     int availablePermits = semaphore.availablePermits();
@@ -553,6 +614,14 @@ public class DdlEngineScheduler {
 
     }
 
+    /**
+     * 加入并发队列 BlockingQueue;
+     *
+     * @param queue
+     * @param object
+     * @param message
+     * @return
+     */
     private boolean offerQueue(BlockingQueue queue, Object object, String message) {
         boolean successful = false;
         String errMsg = null;

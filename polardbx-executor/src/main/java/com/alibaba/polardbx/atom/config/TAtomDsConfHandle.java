@@ -63,7 +63,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 数据库动态切换的Handle类，所有数据库的动态切换 都是由这个类完成
+ * 数据库动态切换的Handle类，所有数据库的动态切换 都是由这个类完成;
+ *
+ * 有 DN 的信息;
  *
  * @author qihao
  */
@@ -95,21 +97,28 @@ public class TAtomDsConfHandle extends AbstractLifecycle implements Lifecycle {
      * 数据源操作锁，当需要对数据源进行重建或者刷新时需要先获得该锁
      */
     private final ReentrantLock lock = new ReentrantLock();
+    /** test@polardbx-polardbx */
     private String appName;
+    /** dskey_test_single_group#polardbx_dn_0#127.0.0.1-4886#test_single */
     private String dbKey;
     private String unitName;
     /**
-     * 运行时配置
+     * DN 运行时配置;
+     * TAtomDsConfDO[ip=127.0.0.1,port=4886,originXport=32886,xport=32886,dbName=test_single,userName=my_polarx,passwd=T2*O7#M8#6*W5$V7$hH1%O9%9^5+(%,driverClass=<null>,sorterClass=com.alibaba.polardbx.common.jdbc.sorter.MySQLExceptionSorter,preparedStatementCacheSize=0,initPoolSize=0,minPoolSize=5,maxPoolSize=60,blockingTimeout=5000,idleTimeout=60,evictionTimeout=0,dbTypeEnum=MYSQL,dbStautsEnum=RW_STATUS,dbStatus=RW,connectionProperties={rewriteBatchedStatements=true, failOverReadOnly=false, connectTimeout=5000, socketTimeout=900000, characterEncoding=utf8, autoReconnect=true, useServerPrepStmts=false, useSSL=false},writeRestrictTimes=0,readRestrictTimes=0,timeSliceInMillis=0,threadCountRestrict=0,maxConcurrentReadRestrict=0,maxConcurrentWriteRestrict=0,characterEncoding=<null>,isSingleInGroup=false,connectionInitSql=set names utf8mb4,maxWaitThreadCount=0,useLoadVariablesFilter=true,createScheduler=true,destroyScheduler=true,onFatalErrorMaxActive=8,dsMode=<null>,enableKeepAlive=true,strictKeepAlive=true,defaultTransactionIsolation=0]
      */
     private volatile TAtomDsConfDO runTimeConf = new TAtomDsConfDO();
 
     /**
-     * 本地配置，优先于推送的动态配置
+     * 本地配置，优先于推送的动态配置;
+     * TAtomDsConfDO[ip=<null>,port=<null>,originXport=-1,xport=-1,dbName=<null>,userName=<null>,passwd=<null>,driverClass=<null>,sorterClass=<null>,preparedStatementCacheSize=0,initPoolSize=0,minPoolSize=0,maxPoolSize=0,blockingTimeout=5000,idleTimeout=0,evictionTimeout=0,dbTypeEnum=MYSQL,dbStautsEnum=<null>,dbStatus=<null>,connectionProperties={},writeRestrictTimes=0,readRestrictTimes=0,timeSliceInMillis=0,threadCountRestrict=0,maxConcurrentReadRestrict=0,maxConcurrentWriteRestrict=0,characterEncoding=<null>,isSingleInGroup=false,connectionInitSql=<null>,maxWaitThreadCount=0,useLoadVariablesFilter=true,createScheduler=true,destroyScheduler=true,onFatalErrorMaxActive=8,dsMode=<null>,enableKeepAlive=true,strictKeepAlive=false,defaultTransactionIsolation=0];
      */
     private TAtomDsConfDO localConf = new TAtomDsConfDO();
 
     /**
-     * Xproto数据源
+     * Xproto数据源 (host, x-port);
+     * XDataSource to my_polarx@127.0.0.1:32886;
+     * name=dskey_test_single_group#polardbx_dn_0#127.0.0.1-4886#test_single_13;
+     * defaultEncodingMySQL=utf8mb4;
      */
     private volatile XDataSource xDataSource = null;
 

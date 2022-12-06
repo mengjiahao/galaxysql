@@ -40,6 +40,10 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * A node is a server in a cluster than can process queries.
+ *
+ * CN 节点信息;
+ * coordinator 可能有多个，leader 只有1个;
+ *
  */
 public class InternalNode implements Node {
     private String nodeIdentifier;

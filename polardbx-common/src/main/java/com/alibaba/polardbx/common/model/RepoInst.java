@@ -16,6 +16,10 @@
 
 package com.alibaba.polardbx.common.model;
 
+/**
+ * DN 实例信息;
+ * (address, dbId, readWeight, writeWeight);
+ */
 public class RepoInst {
 
     public static final int REPO_INST_TYPE_MASTER = 1;

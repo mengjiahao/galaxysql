@@ -37,6 +37,7 @@ public interface DdlJob {
     /**
      * Add a relationship between a source DDL task and a target DDL task into this job.
      * For example, task1 -> task2.
+     * 增加 job 任务的依赖关系;
      *
      * @param source A new/existing DDL task as source
      * @param target A new/existing DDL task as target

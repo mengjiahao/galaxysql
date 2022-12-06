@@ -29,6 +29,17 @@ import lombok.Getter;
 
 import java.sql.Connection;
 
+/**
+ * 操作 TableMetaChanger.addTableExt 更新 metadb 中 TablesExt 元数据;
+ *
+ * TablesExtRecord 有表分库分表规则:
+ * 单库单表: (test, tb1, TEST_SINGLE_GROUP, tb1_xjik);
+ *
+ * 分库分表: (test, tb2, dbPartitionKey=id, dbPartitionPolicy=HASH, dbPartitionCount=8,
+ * dbNamePattern=TEST_{000000}_GROUP, dbRule=((#id,1,16#).longValue().abs() % 16).intdiv(2),
+ * tbPartitionKey=id, tbPartitionPolicy=HASH, tbPartitionCount=2, tbNamePattern=tb2_557Z_{00},
+ * tbRule=((#id,1,16#).longValue().abs() % 16), fullTableScan=1)
+ */
 @Getter
 @TaskName(name = "CreateTableAddTablesExtMetaTask")
 public class CreateTableAddTablesExtMetaTask extends BaseGmsTask {
@@ -53,6 +64,7 @@ public class CreateTableAddTablesExtMetaTask extends BaseGmsTask {
             return;
         }
         if (autoPartition) {
+            // 单库单表 不是 autoPartition
             tablesExtRecord.setAutoPartition();
         }
         TableMetaChanger.addTableExt(metaDbConnection, tablesExtRecord);
@@ -60,11 +72,18 @@ public class CreateTableAddTablesExtMetaTask extends BaseGmsTask {
         FailPoint.injectRandomSuspendFromHint(executionContext);
     }
 
+    /**
+     * 注意 删除 元数据信息，并且 同步执行元数据加载 TableMetaChangeSyncAction；
+     *
+     * @param metaDbConnection
+     * @param executionContext
+     */
     @Override
     public void rollbackImpl(Connection metaDbConnection, ExecutionContext executionContext) {
         if (!isCreateTableSupported(executionContext)) {
             return;
         }
+        // 直接删除元数据记录
         TableMetaChanger.removeTableExt(metaDbConnection, schemaName, logicalTableName);
         FailPoint.injectRandomExceptionFromHint(executionContext);
         FailPoint.injectRandomSuspendFromHint(executionContext);

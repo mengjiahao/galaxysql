@@ -50,6 +50,9 @@ import java.util.Properties;
 import java.util.StringTokenizer;
 
 /**
+ *
+ * DN 的信息;
+ *
  * @author 梦实 2017年12月12日 下午2:01:21
  * @since 5.0.0
  */
@@ -185,6 +188,12 @@ public class TGroupDataSource extends AbstractLifecycle implements IDataSource, 
         return getConnection(masterSlave);
     }
 
+    /**
+     * 获取 DN JDBC 连接；
+     * @param masterSlave
+     * @return
+     * @throws SQLException
+     */
     @Override
     public TGroupDirectConnection getConnection(MasterSlave masterSlave) throws SQLException {
 

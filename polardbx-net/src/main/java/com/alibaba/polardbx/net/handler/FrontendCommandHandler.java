@@ -41,6 +41,10 @@ public class FrontendCommandHandler implements NIOHandler {
         this.commandCount = source.getProcessor().getCommands();
     }
 
+    /**
+     * 处理入口
+     * @param data
+     */
     @Override
     public void handle(byte[] data) {
         source.buildMDC();

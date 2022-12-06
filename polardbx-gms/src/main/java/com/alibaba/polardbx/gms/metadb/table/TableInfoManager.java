@@ -75,6 +75,10 @@ import java.util.stream.Collectors;
 
 import static com.alibaba.polardbx.gms.tablegroup.TableGroupRecord.TG_TYPE_PARTITION_TBL_TG;
 
+/**
+ * 通过 Accessor SQL访问 meta 元数据 系统表;
+ * 拥有 schema/table/column/index 元数据;
+ */
 public class TableInfoManager extends AbstractAccessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TableInfoManager.class);
@@ -113,10 +117,19 @@ public class TableInfoManager extends AbstractAccessor {
         joinGroupTableDetailAccessor = new JoinGroupTableDetailAccessor();
     }
 
-    private static final String SQL_UPDATE_TABLE_VERSION = "UPDATE "
+    private static final String  SQL_UPDATE_TABLE_VERSION = "UPDATE "
         + GmsSystemTables.TABLES
         + " SET VERSION=last_insert_id(VERSION+1) WHERE TABLE_SCHEMA=? AND TABLE_NAME=?";
 
+    /**
+     * 将 metadb.table 的 version自增, 并 同步通知;
+     *
+     * @param schema
+     * @param table
+     * @param conn
+     * @return
+     * @throws SQLException
+     */
     public static long updateTableVersion(String schema, String table, Connection conn) throws SQLException {
         try (PreparedStatement pstmt = conn.prepareStatement(SQL_UPDATE_TABLE_VERSION)) {
             pstmt.setString(1, schema);
@@ -136,6 +149,7 @@ public class TableInfoManager extends AbstractAccessor {
             newVersion = rs.getLong(1);
         }
 
+        // 注意同步通知其他 CN 节点 表已经变化;
         MetaDbConfigManager.getInstance().notify(MetaDbDataIdBuilder.getTableDataId(schema, table), conn);
         return newVersion;
     }
@@ -592,6 +606,14 @@ public class TableInfoManager extends AbstractAccessor {
         }
     }
 
+    /**
+     * metadb 元数据 status 变更为 PUBLIC;
+     *
+     * @param tableSchema
+     * @param tableName
+     * @param sequenceRecord
+     * @param refreshColumnStatus
+     */
     public void showTable(String tableSchema, String tableName, SequenceBaseRecord sequenceRecord) {
         updateStatus(tableSchema, tableName, sequenceRecord, TableStatus.PUBLIC, true);
         tablePartitionAccessor.updateStatusForPartitionedTable(tableSchema, tableName,
@@ -637,6 +659,14 @@ public class TableInfoManager extends AbstractAccessor {
         }
     }
 
+    /**
+     * 删除 metadb 元数据 table/column/index/file/sequences;
+     *
+     * @param tableSchema
+     * @param tableName
+     * @param sequenceRecord
+     * @param withTablesExtOrPartition
+     */
     public void removeTable(String tableSchema, String tableName, SequenceBaseRecord sequenceRecord,
                             boolean withTablesExtOrPartition) {
         tablesAccessor.delete(tableSchema, tableName);

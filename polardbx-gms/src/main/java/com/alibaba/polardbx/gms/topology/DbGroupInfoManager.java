@@ -60,6 +60,10 @@ public class DbGroupInfoManager extends AbstractLifecycle {
         }
     }
 
+    /**
+     * 更新 dbGroups cache;
+     * @param schema
+     */
     private void reloadGroupsOfDb(String schema) {
         try (Connection conn = MetaDbDataSource.getInstance().getConnection()) {
             DbGroupInfoAccessor dbGroupInfoAccessor = new DbGroupInfoAccessor();

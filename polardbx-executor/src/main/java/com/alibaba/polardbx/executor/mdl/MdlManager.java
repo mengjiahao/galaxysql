@@ -30,17 +30,22 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 /**
+ * 管理上下文;
+ * 全局 SCHEMA_MDL_MANAGERS(schema, MdlManagerStamped) 与 contextMap(front_conn_id, MdlContextStamped);
+ *
  * @author chenmo.cm
  */
 public abstract class MdlManager extends AbstractLifecycle {
 
+    /** map(schema, MdlManagerStamped) */
     protected static final Map<String, MdlManager> SCHEMA_MDL_MANAGERS = new ConcurrentHashMap<>();
     protected final String schema;
     /**
      * <pre>
      * Hold all MdlContext, every front connection(ServerConnection) should remove its own context before closed
-     * map<front_conn_id, MdlContext>
+     * map<front_conn_id, MdlContextStamped>
      * </pre>
+     * 当前只用于记录  owner of metadata locks;
      */
     protected static final Map<String, MdlContext> contextMap = new ConcurrentHashMap<>();
 
@@ -56,7 +61,8 @@ public abstract class MdlManager extends AbstractLifecycle {
     }
 
     /**
-     * For each schema element there will be a MdlManager
+     * For each schema element there will be a MdlManager;
+     * 获取 schema 对应的 MdlManagerStamped;
      */
     public static MdlManager getInstance(@NotNull String schema) {
         return SCHEMA_MDL_MANAGERS.computeIfAbsent(schema, MdlManagerStamped::new);
@@ -81,6 +87,12 @@ public abstract class MdlManager extends AbstractLifecycle {
         return contextMap.computeIfAbsent(connId.toString(), MdlContextStamped::new);
     }
 
+    /**
+     * 添加 锁的所有者 信息;
+     * @param schemaName
+     * @param preemptive
+     * @return
+     */
     public static MdlContext addContext(@NotNull String schemaName, boolean preemptive) {
         if(preemptive){
             return contextMap.computeIfAbsent(
@@ -136,6 +148,7 @@ public abstract class MdlManager extends AbstractLifecycle {
             readLock = false;
             break;
         case MDL_SHARED_WRITE:
+            // 注意 MDL_SHARED_WRITE 是读锁
             readLock = true;
             break;
         default:

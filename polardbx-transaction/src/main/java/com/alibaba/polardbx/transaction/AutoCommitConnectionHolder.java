@@ -51,6 +51,15 @@ public class AutoCommitConnectionHolder extends BaseConnectionHolder {
         return conn;
     }
 
+    /**
+     * 获取 DN 的连接;
+     * @param schemaName
+     * @param groupName
+     * @param ds
+     * @param masterSlave
+     * @return
+     * @throws SQLException
+     */
     @Override
     public IConnection getConnection(String schemaName, String groupName, IDataSource ds, MasterSlave masterSlave)
         throws SQLException {

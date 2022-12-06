@@ -51,6 +51,11 @@ public enum DdlType {
     REFRESH_TOPOLOGY,
     ;
 
+    /**
+     * function 不用上上层读锁；
+     * @param type
+     * @return
+     */
     public static boolean needDefaultDdlShareLock(DdlType type) {
         if (type == null) {
             return true;

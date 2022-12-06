@@ -23,6 +23,7 @@ import java.util.concurrent.locks.StampedLock;
 
 /**
  * @author chenmo.cm
+ * 拥有 StampedLock; 锁是上在 MdlKey 上;
  */
 public abstract class MdlLock {
 
@@ -30,6 +31,7 @@ public abstract class MdlLock {
 
     protected final StampedLock latch;
 
+    /** rStamp 是乐观锁的标记，CAS 校验 */
     protected volatile long rStamp;
 
     protected volatile long wStamp;
@@ -49,6 +51,9 @@ public abstract class MdlLock {
 
     public abstract boolean isLocked();
 
+    /**
+     * 加悲观读锁;
+     */
     public synchronized void latchRead() {
         rStamp = latch.readLock();
     }
@@ -60,15 +65,21 @@ public abstract class MdlLock {
         }
     }
 
+    /**
+     * 加写锁；
+     * @return
+     */
     public synchronized boolean latchWrite() {
         if (0 != wStamp) {
             // Already holding the lock, validate it
             final long stamp = latch.tryConvertToWriteLock(wStamp);
 
+            /** 先前的写锁仍在，则抛异常；*/
             Assert.assertTrue(wStamp != stamp, "Unknown write stamp");
             return true;
         }
 
+        // 乐观锁试探 是否存在 写锁;
         final long orStamp = latch.tryOptimisticRead();
 
         if (0 == orStamp) {

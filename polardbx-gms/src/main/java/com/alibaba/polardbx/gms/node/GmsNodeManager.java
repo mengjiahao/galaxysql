@@ -46,6 +46,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 缓存集群节点CN信息, 比如 (ip,port);
+ * 信息从 metadb 的 server_info 拉取;
+ */
 public class GmsNodeManager extends AbstractLifecycle {
 
     private static final Logger LOGGER = LoggerInit.TDDL_DYNAMIC_CONFIG;
@@ -65,6 +69,7 @@ public class GmsNodeManager extends AbstractLifecycle {
 
     /**
      * Current node.
+     * 本地 CN 节点信息;
      */
     private volatile GmsNode localNode = null;
 
@@ -178,6 +183,11 @@ public class GmsNodeManager extends AbstractLifecycle {
         }
     }
 
+    /**
+     * 重新加载；
+     *
+     * @param localServerPort
+     */
     public void reloadNodes(int localServerPort) {
         // Clean up sync data sources.
         clearDataSources();
@@ -196,6 +206,9 @@ public class GmsNodeManager extends AbstractLifecycle {
         printNodeInfo();
     }
 
+    /**
+     * 清除 DN 节点信息;
+     */
     private void clearDataSources() {
         for (DataSource dataSource : dataSources.values()) {
             try {
@@ -206,6 +219,10 @@ public class GmsNodeManager extends AbstractLifecycle {
         dataSources.clear();
     }
 
+    /**
+     * 从 metadb 获取 inst_id 的 localNode 与 remoteNodes;
+     * @param localServerPort
+     */
     private void loadNodesForCurrentInstance(int localServerPort) {
         try (Connection metaDbConn = MetaDbUtil.getConnection()) {
             serverInfoAccessor.setConnection(metaDbConn);
@@ -398,6 +415,9 @@ public class GmsNodeManager extends AbstractLifecycle {
         return (int) id % NODE_ID_SPACE;
     }
 
+    /**
+     * 更新 TddlNode 中全局静态变量;
+     */
     private void refreshNodeIdList() {
         List<Integer> uniqueIdList = new ArrayList<>();
         Map<Integer, String> uniqueIdKeyMapping = new ConcurrentHashMap<>();
@@ -446,6 +466,9 @@ public class GmsNodeManager extends AbstractLifecycle {
         }
     }
 
+    /**
+     * (ip, port, status, instType, cpuCore)
+     */
     public static class GmsNode implements NodeInfo {
 
         public long origId;

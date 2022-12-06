@@ -57,6 +57,8 @@ import static com.alibaba.polardbx.executor.utils.failpoint.FailPointKey.FP_RAND
  * <p>
  * set @fp_clear=true;
  * select @fp_show;
+ *
+ * assert 检查;
  */
 public class FailPoint {
 

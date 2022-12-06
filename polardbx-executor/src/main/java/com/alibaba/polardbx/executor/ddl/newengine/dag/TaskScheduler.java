@@ -42,12 +42,14 @@ import static com.alibaba.polardbx.executor.ddl.newengine.dag.DirectedAcyclicGra
  * 4. can't be executed yet the task,  stores in "nonZeroInDegreeVertexes"
  * 5. failed tasks
  * <p>
- * 有5种类型的task
+ * 有5种类型的task, DAG 任务图，节点是 DdlTask:
  * 1. 已执行的task，存储在executedVertexes
  * 2. 执行中的task，存储在executingVertexes
  * 3. 可执行(无依赖)但未执行的task，存储在zeroInDegreeVertexes
  * 4. 不可执行(有依赖)的task，存储在nonZeroInDegreeVertexes
  * 5. 执行失败的任务
+ *
+ * 每次执行完 DdlTask 都会变更拓扑图;
  *
  * @author guxu
  */
@@ -93,6 +95,10 @@ public class TaskScheduler extends AbstractLifecycle {
         return count;
     }
 
+    /**
+     * daGraph 拓扑图没有输入节点，执行过的都存入 executedVertexes;
+     * @return
+     */
     public boolean isAllTaskDone() {
         synchronized (daGraph) {
             return CollectionUtils.isEmpty(failedVertexes)
@@ -137,6 +143,10 @@ public class TaskScheduler extends AbstractLifecycle {
         }
     }
 
+    /**
+     * DAG的输入度为0的节点都可执行;
+     * @return
+     */
     public boolean hasMoreExecutable() {
         synchronized (daGraph) {
             return CollectionUtils.isNotEmpty(zeroInDegreeVertexes);
@@ -154,6 +164,11 @@ public class TaskScheduler extends AbstractLifecycle {
         }
     }
 
+    /**
+     * 可批量执行 DAG 输入度为0的节点;
+     *
+     * @return
+     */
     public List<DdlTask> pollBatch() {
         synchronized (daGraph) {
             List<DdlTask> result = new ArrayList<>();
@@ -164,6 +179,10 @@ public class TaskScheduler extends AbstractLifecycle {
         }
     }
 
+    /**
+     * 变更 拓扑图;
+     * @param task
+     */
     public void markAsDone(DdlTask task) {
         synchronized (daGraph) {
             Optional<Vertex> vertexOptional =

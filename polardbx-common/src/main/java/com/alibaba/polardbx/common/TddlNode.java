@@ -21,6 +21,12 @@ import com.alibaba.polardbx.common.utils.AddressUtils;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 保存有 集群CN节点信息;
+ * host:port=本节点ip:port;
+ * nodeIdKeyMapping=map(uniqueId, ip:port);
+ * nodeIdList=List[uniqueId];
+ */
 public class TddlNode {
 
     public static final String NOT_APPLICABLE = "N/A";

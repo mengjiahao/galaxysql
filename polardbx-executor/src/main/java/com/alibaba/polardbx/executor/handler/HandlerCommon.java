@@ -124,6 +124,13 @@ public abstract class HandlerCommon implements PlanHandler {
         return repo;
     }
 
+    /**
+     * 会最终调用 DN 执行 DDL;
+     *
+     * @param logicalPlan
+     * @param executionContext
+     * @return
+     */
     @Override
     public Cursor handlePlan(RelNode logicalPlan, ExecutionContext executionContext) {
         Cursor cursor = handle(logicalPlan, executionContext);
@@ -410,7 +417,10 @@ public abstract class HandlerCommon implements PlanHandler {
     }
 
     /**
-     * 实例间并行. 同一实例中串行,实例以ip,port为划分
+     * 实例间并行. 同一实例中串行,实例以ip,port为划分;
+     * 找到对应的 DN 并执行 RelNode;
+     *
+     * @param subNodes 注意分库分表的话有 (dbCount * tableCount) 个物理执行计划;
      */
     protected void executeInstanceConcurrent(List<RelNode> subNodes, List<Cursor> subCursors,
                                              ExecutionContext ec, String schemaName, List<Throwable> exceptions) {
@@ -420,13 +430,18 @@ public abstract class HandlerCommon implements PlanHandler {
 
         Map<String, List<RelNode>> plansByInstance = new HashMap<>();
         for (RelNode subNode : subNodes) {
+            /** 获取DN TGroupDataSource */
             Object possibleTGroupDataSource = myRepo.getGroupExecutor(optimizerContext.getMatrix()
                 .getGroup(((BaseQueryOperation) subNode).getDbIndex())).getDataSource();
             if (!(possibleTGroupDataSource instanceof TGroupDataSource)) {
                 throw new TddlNestableRuntimeException("Unsupported datasource for INSTANCE_CONCURRENT");
             }
 
-            // ip + port = id
+            /**
+             * ip + port = id
+             * weightEntry="Weight[r=10, w=10, p=0, q=0, indexes=null, a=0]"
+             * instanceId=127.0.0.1:4886 (4886 是 DN 的mysql端口)
+             */
             String instanceId = null;
             for (Map.Entry<TAtomDataSource, Weight> weightEntry : ((TGroupDataSource) possibleTGroupDataSource)
                 .getAtomDataSourceWeights()
@@ -440,6 +455,10 @@ public abstract class HandlerCommon implements PlanHandler {
                 throw new TddlNestableRuntimeException("Unsupported group without writable database");
             }
 
+            /**
+             * 将 (instanceId, RelNode) 加入 plansByInstance；
+             * 加入 DN 对应的 RelNode;
+             **/
             List<RelNode> plans = plansByInstance.get(instanceId);
             if (plans == null) {
                 plans = new ArrayList<>();

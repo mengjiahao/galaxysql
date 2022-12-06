@@ -19,6 +19,12 @@ package com.alibaba.polardbx.gms.sync;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 通过 SYNC_MANAGER(ClusterSyncManager) 单例实现 Worker Node到Leader Node的节点间通信;
+ * 这种节点间通信机制不仅存在于DDL引擎加载DDL job过程中，也存在于DDL job执行时节点间的元数据同步过程中（见后文），
+ * 这两种情境下封装的syncAction均会触发接收方从MetaDB中拉取实际的通信内容（DDL job或者元信息），
+ * 这种通信机制以数据库服务作为通信中介保证了通信内容传递的高可用和一致性;
+ */
 public class GmsSyncManagerHelper {
 
     private static IGmsSyncManager SYNC_MANAGER;
@@ -63,6 +69,14 @@ public class GmsSyncManagerHelper {
         SYNC_MANAGER.sync(action, schemaName, scope, handler, throwExceptions);
     }
 
+    /**
+     * 集群间同步；
+     *
+     * @param action
+     * @param schemaName
+     * @param serverKey 一般用于发给 leader;
+     * @return
+     */
     public static List<Map<String, Object>> sync(IGmsSyncAction action, String schemaName, String serverKey) {
         return SYNC_MANAGER.sync(action, schemaName, serverKey);
     }

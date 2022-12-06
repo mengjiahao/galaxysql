@@ -34,6 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * 操作 租约系统表 lease ("`id`, `schema_name`, `lease_holder`, `lease_key`, `start_at`, `last_modified`, `expire_at`, `ttl_millis`");
+ */
 public class LeaseAccessor extends AbstractAccessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LeaseAccessor.class);
@@ -74,6 +77,11 @@ public class LeaseAccessor extends AbstractAccessor {
     private static final String DELETE_BY_SCHEMA_NAME = "delete from " + LEASE + WHERE_SCHEMA_NAME;
 
 
+    /**
+     * 插入 LeaseRecord;
+     * @param record
+     * @return
+     */
     public int acquire(LeaseRecord record) {
         try {
             DdlMetaLogUtil.logSql(ACQUIRE_LEASE_SQL, record.buildParamsForInsert());
@@ -132,7 +140,13 @@ public class LeaseAccessor extends AbstractAccessor {
     }
 
 
-
+    /**
+     * update ttl；
+     *
+     * @param leaseHolder
+     * @param leaseKey
+     * @return
+     */
     public int extendByHolderAndKey(String leaseHolder, String leaseKey) {
         try {
             final Map<Integer, ParameterContext> params =

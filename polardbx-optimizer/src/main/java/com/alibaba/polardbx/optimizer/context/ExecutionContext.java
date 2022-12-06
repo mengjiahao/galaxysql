@@ -138,12 +138,18 @@ public class ExecutionContext {
     private Map<String, Object> hintCmds = null;
 
     /**
-     * schema manager used in this query
+     * schema manager used in this query；
+     * ConcurrentHashMap(tableName, GmsTableMetaManager);
+     * 只添加当前请求需要的元数据信息;
+     * 注意 ConcurrentHashMap 是多线程安全的;
+     *
      */
     private Map<String, SchemaManager> schemaManagers = new ConcurrentHashMap<>();
 
     /**
-     * schema manager of this schema used in this query
+     * schema manager of this schema used in this query;
+     * map(table, tableMeta);
+     * 注意只用到了 元数据 的指针;
      */
     private SchemaManager currentSchemaManager = null;
 
@@ -180,6 +186,7 @@ public class ExecutionContext {
 
     private long sqlModeFlags = 0L;
 
+    /** 上下文有 sql */
     private ByteString sql = null;
 
     private String encoding = null;
@@ -302,6 +309,7 @@ public class ExecutionContext {
 
     private WorkloadType workloadType;
 
+    /** user=polardbx_root,host=127.0.0.1,port=53479,schema=test */
     private String mdcConnString;
 
     private Map<Integer, Integer> recordRowCnt = Maps.newConcurrentMap();
@@ -324,6 +332,7 @@ public class ExecutionContext {
     private boolean hasScaleOutWrite = false;
     private boolean isOriginSqlPushdownOrRoute = false;
 
+    /** 执行一次请求后缓存在上下文中 */
     private PrivilegeContext privilegeContext;
 
     private long txId = 0L;
@@ -1090,6 +1099,12 @@ public class ExecutionContext {
         return this.copy(new CopyOption().setParameters(params));
     }
 
+    /**
+     * extraCmds/schemaManagers 要深复制;
+     *
+     * @param option
+     * @return
+     */
     public ExecutionContext copy(CopyOption option) {
         ExecutionContext ec = new ExecutionContext();
         ec.transaction = getTransaction();
@@ -1201,6 +1216,9 @@ public class ExecutionContext {
         return ec;
     }
 
+    /**
+     * 每次请求执行结束后 都会清空 executionContext 的 schemaManagers 信息;
+     */
     public void refreshTableMeta() {
         this.schemaManagers = new ConcurrentHashMap<>();
         this.currentSchemaManager = null;
@@ -1430,8 +1448,19 @@ public class ExecutionContext {
         this.loadDataContext = loadDataContext;
     }
 
+    /**
+     * plan/optimize 阶段会通过此获取 元数据信息；
+     *
+     * 注意 这里若获取不到 schemaName 对应的元数据，则会从 OptimizerContext.getContext(schemaName).getLatestSchemaManager()
+     * 拿到最新的 加入到 schemaManagers;
+     * 注意只使用到了 元数据 指针;
+     *
+     * @param schemaName null
+     * @return
+     */
     public SchemaManager getSchemaManager(String schemaName) {
         if (schemaName == null) {
+            // 通过 thread local 传递 test
             schemaName = DefaultSchema.getSchemaName();
         }
         if (schemaName == null) {
@@ -1439,6 +1468,7 @@ public class ExecutionContext {
         }
         schemaName = schemaName.toLowerCase();
 
+        /** plan开始时 SchemaManager 是空的, 需要从 OptimizerContext 获取 */
         SchemaManager m = schemaManagers.get(schemaName);
 
         if (m != null) {
@@ -1448,6 +1478,7 @@ public class ExecutionContext {
         if (oc == null) {
             throw new TddlRuntimeException(ErrorCode.ERR_UNKNOWN_DATABASE, schemaName);
         }
+        /** 注意这用到最新的 SchemaManager, 只是添加指针 */
         m = OptimizerContext.getContext(schemaName).getLatestSchemaManager();
         schemaManagers.put(schemaName, m);
 
@@ -1464,6 +1495,10 @@ public class ExecutionContext {
         return this.getSchemaManager(this.schemaName);
     }
 
+    /**
+     * 构建执行计划时 元数据通过上下文传递
+     * @return
+     */
     public Map<String, SchemaManager> getSchemaManagers() {
         return this.schemaManagers;
     }

@@ -82,11 +82,22 @@ public class ExecutorHelper {
         return execute(plan, context, enableMpp, cacheOutput, false);
     }
 
+    /**
+     * 区分 DDL/DQL/DML 执行;
+     *
+     * @param plan
+     * @param context
+     * @param enableMpp DDL为true;
+     * @param cacheOutput DDL为false;
+     * @param asyncCacheOutput
+     * @return
+     */
     public static Cursor execute(RelNode plan, ExecutionContext context, boolean enableMpp, boolean cacheOutput,
                                  boolean asyncCacheOutput) {
         ExecutorMode executorMode = getExecutorMode(plan, context, enableMpp);
         switch (executorMode) {
         case CURSOR:
+            // DDL 是 CURSOR;
             return executeByCursor(plan, context, cacheOutput, asyncCacheOutput);
         case TP_LOCAL:
         case AP_LOCAL:
@@ -145,6 +156,15 @@ public class ExecutorHelper {
         return executeByCursor(plan, context, cacheOutput, false);
     }
 
+    /**
+     * 执行 DDL;
+     *
+     * @param plan
+     * @param context
+     * @param cacheOutput
+     * @param asyncCacheOutput
+     * @return
+     */
     public static Cursor executeByCursor(RelNode plan, ExecutionContext context, boolean cacheOutput,
                                          boolean asyncCacheOutput) {
         String schema = null;
@@ -162,6 +182,7 @@ public class ExecutorHelper {
         }
         Cursor cursor = null;
         try {
+            // 调用 TransactionExecutor.execByExecPlanNode
             cursor = ExecutorContext.getContext(schema).getTopologyExecutor().execByExecPlanNode(plan, context);
         } finally {
             if (cursor == null) {
@@ -253,6 +274,10 @@ public class ExecutorHelper {
         }
     }
 
+    /**
+     * 分配内存池;
+     * @param context
+     */
     private static void initQueryContext(ExecutionContext context) {
         if (context.getMemoryPool() == null) {
             context.setMemoryPool(MemoryManager.getInstance().createQueryMemoryPool(

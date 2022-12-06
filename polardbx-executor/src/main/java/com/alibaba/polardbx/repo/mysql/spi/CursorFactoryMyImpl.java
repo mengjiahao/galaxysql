@@ -25,6 +25,10 @@ import com.alibaba.polardbx.optimizer.core.rel.BaseTableOperation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlKind;
 
+/**
+ * DDL 执行使用这个;
+ *
+ */
 public class CursorFactoryMyImpl implements ICursorFactory {
 
     protected MyRepository repo;
@@ -37,6 +41,7 @@ public class CursorFactoryMyImpl implements ICursorFactory {
     @Override
     public Cursor repoCursor(ExecutionContext executionContext, RelNode plan) {
         Preconditions.checkArgument(plan instanceof BaseQueryOperation);
+        // rel#284:PhyDdlTableOperation.DRDS.[].any()
         BaseQueryOperation tableOperate = (BaseQueryOperation) plan;
 
         if (tableOperate instanceof BaseTableOperation) {
@@ -50,6 +55,7 @@ public class CursorFactoryMyImpl implements ICursorFactory {
                     return new MyPhyTableModifyCursor(executionContext, (BaseTableOperation) tableOperate, repo);
                 }
             } else if (SqlKind.SUPPORT_DDL.contains(tableOperate.getKind())) {
+                /** DDL 走这里 */
                 return new MyPhyDdlTableCursor(executionContext, (BaseTableOperation) tableOperate, repo);
             } else {
                 throw new AssertionError();

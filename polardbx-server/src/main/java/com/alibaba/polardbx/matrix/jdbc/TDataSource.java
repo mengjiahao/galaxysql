@@ -76,7 +76,8 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * matrix的jdbc datasource实现
+ * matrix的jdbc datasource实现;
+ * CN 或者 DN？
  *
  * @author mengshi.sunmengshi 2013-11-22 下午3:26:14
  * @since 5.0.0

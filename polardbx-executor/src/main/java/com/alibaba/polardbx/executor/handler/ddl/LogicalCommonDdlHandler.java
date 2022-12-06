@@ -63,6 +63,10 @@ import org.apache.commons.collections.CollectionUtils;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * handle DDL 请求入口;
+ * 定义 DdlJob，逻辑执行计划 转换为 物理执行计划；
+ */
 public abstract class LogicalCommonDdlHandler extends HandlerCommon {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LogicalCommonDdlHandler.class);
@@ -71,6 +75,14 @@ public abstract class LogicalCommonDdlHandler extends HandlerCommon {
         super(repo);
     }
 
+    /**
+     * 会调用子类的handle，比如 LogicalCreateTableHandler；
+     * 注意产生真正的 DdlJob 以及 物理执行计划;
+     *
+     * @param logicalPlan
+     * @param executionContext
+     * @return
+     */
     @Override
     public Cursor handle(RelNode logicalPlan, ExecutionContext executionContext) {
         BaseDdlOperation logicalDdlPlan = (BaseDdlOperation) logicalPlan;
@@ -78,13 +90,18 @@ public abstract class LogicalCommonDdlHandler extends HandlerCommon {
         initDdlContext(logicalDdlPlan, executionContext);
 
         // Validate the plan first and then return immediately if needed.
+        // 一般false
         boolean returnImmediately = validatePlan(logicalDdlPlan, executionContext);
 
         boolean isNewPartDb = DbInfoManager.getInstance().isNewPartitionDb(logicalDdlPlan.getSchemaName());
 
+        /**
+         * 映射逻辑表到目标表；
+         **/
         if (isNewPartDb) {
             setPartitionDbIndexAndPhyTable(logicalDdlPlan);
         } else {
+            // 单库单表 走这里
             setDbIndexAndPhyTable(logicalDdlPlan);
         }
 
@@ -154,6 +171,12 @@ public abstract class LogicalCommonDdlHandler extends HandlerCommon {
         checkTaskName(ddlJob.createTaskIterator().getAllTasks());
     }
 
+    /**
+     *  创建并绑定 DdlContext 到  executionContext;
+     *
+     * @param logicalDdlPlan
+     * @param executionContext
+     */
     protected void initDdlContext(BaseDdlOperation logicalDdlPlan, ExecutionContext executionContext) {
         String schemaName = logicalDdlPlan.getSchemaName();
         if (TStringUtil.isEmpty(schemaName)) {
@@ -169,6 +192,19 @@ public abstract class LogicalCommonDdlHandler extends HandlerCommon {
         executionContext.setDdlContext(ddlContext);
     }
 
+    /**
+     * 分发给 leader CN DdlJob，并同步从 leader CN 等待结果；
+     *
+     * DdlJob:
+     * create table:
+     * ExecutableDdlJob4CreateTable(createTableValidateTask=null, createTableAddTablesExtMetaTask=null, createTablePhyDdlTask=null, createTableAddTablesMetaTask=null, cdcDdlMarkTask=null, createTableShowTableMetaTask=null, tableSyncTask=null);
+     *
+     * drop table:
+     * ExecutableDdlJob4DropTable(validateTask=1536884064194134016, removeMetaTask=1536884061656580096, tableSyncTaskAfterRemoveMeta=1536884062046650368, phyDdlTask=1536884062315085824, cdcDdlMarkTask=1536884063736954880);
+     *
+     * @param ddlJob
+     * @param executionContext
+     */
     protected void handleDdlRequest(DdlJob ddlJob, ExecutionContext executionContext) {
         if (ddlJob instanceof TransientDdlJob) {
             return;
@@ -178,6 +214,7 @@ public abstract class LogicalCommonDdlHandler extends HandlerCommon {
             DdlEngineRequester.create(ddlJob, executionContext).executeSubJob(
                 ddlContext.getParentJobId(), ddlContext.getParentTaskId(), ddlContext.isForRollback());
         } else {
+            // 一般走这
             DdlEngineRequester.create(ddlJob, executionContext).execute();
         }
     }
@@ -198,13 +235,24 @@ public abstract class LogicalCommonDdlHandler extends HandlerCommon {
         }
     }
 
+    /**
+     * 映射逻辑表到目标表，设置目标表到逻辑执行计划;
+     *
+     * @param logicalDdlPlan
+     */
     protected void setDbIndexAndPhyTable(BaseDdlOperation logicalDdlPlan) {
         final TddlRuleManager rule = OptimizerContext.getContext(logicalDdlPlan.getSchemaName()).getRuleManager();
         final boolean singleDbIndex = rule.isSingleDbIndex();
 
+        /**
+         * (dbIndex=TEST_SINGLE_GROUP, phyTable=tb1)；
+         * 单库单表 与 分库分表 都是 TEST_SINGLE_GROUP?
+         **/
         String dbIndex = rule.getDefaultDbIndex(null);
         String phyTable = RelUtils.lastStringValue(logicalDdlPlan.getTableNameNode());
         if (null != logicalDdlPlan.getTableNameNode() && !singleDbIndex) {
+            /** 逻辑表 映射到 目标表 */
+            // TargetDB[dbIndex=TEST_SINGLE_GROUP,tableNames={tb1=Field[sourceKeys={}]},logTblName=<null>]
             final TargetDB target = rule.shardAny(phyTable);
             phyTable = target.getTableNames().iterator().next();
             dbIndex = target.getDbIndex();

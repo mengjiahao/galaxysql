@@ -420,6 +420,7 @@ public class PlanManagerUtil {
             }
             try {
 
+                /** 这里利用了 元数据信息 */
                 TableMeta tableMeta;
                 if (ec == null) {
                     tableMeta = OptimizerContext.getContext(schema).getLatestSchemaManager().getTable(table);

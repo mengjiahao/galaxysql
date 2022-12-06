@@ -28,7 +28,12 @@ import java.sql.Timestamp;
 public class DbInfoRecord implements SystemTableRecord {
 
     /**
-     * The db type of logical db
+     * The db type of logical db;
+     *
+     * DB_TYPE_PART_DB: 用户创建的 test;
+     * DB_TYPE_DEFAULT_DB: 默认的 polardbx;
+     * DB_TYPE_SYSTEM_DB: 默认的 information_schema;
+     * DB_TYPE_CDC_DB: 默认的 __cdc__;
      */
     // Db type for old partition db (drds)
     public static final int DB_TYPE_PART_DB = 0;

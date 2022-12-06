@@ -153,7 +153,9 @@ public class TConnection implements ITConnection {
 
     protected final static Logger logger = LoggerFactory.getLogger(TConnection.class);
     private PlanExecutor executor = null;
+    /** 本节点 CN 的信息 */
     private final TDataSource dataSource;
+    /** 注意 executionContext 是共享的 */
     private ExecutionContext executionContext = new ExecutionContext();                             // 记录上一次的执行上下文
     private final List<TStatement> openedStatements = new ArrayList<TStatement>(2);
     private boolean isAutoCommit = true;                                               // jdbc规范，新连接为true
@@ -310,7 +312,8 @@ public class TConnection implements ITConnection {
     }
 
     /**
-     * 执行sql语句的逻辑
+     * 执行sql语句的逻辑;
+     * 包括 DDL 执行;
      */
     public ResultSet executeSQL(ByteString sql, Parameters params, TStatement stmt,
                                 ExecutionContext executionContext) throws SQLException {
@@ -333,9 +336,15 @@ public class TConnection implements ITConnection {
             ResultCursor resultCursor;
             ResultSet rs = null;
 
+            // extraCmd 是 连接配置，默认 64个;
+            // MAX_PHYSICAL_PARTITION_COUNT -> 8192
+            // CONN_POOL_XPROTO_MAX_PACKET_SIZE -> 67108864
+            // CONN_POOL_XPROTO_MAX_SESSION_PER_CLIENT -> 1024
+            // CONN_POOL_PROPERTIES -> connectTimeout=5000;characterEncoding=utf8;autoReconnect=true;failOverReadOnly=false;socketTimeout=900000;rewriteBatchedStatements=true;useServerPrepStmts=false;useSSL=false;strictKeepAlive=true;
             MergeHashMap<String, Object> extraCmd = new MergeHashMap<>(dataSource.getConnectionProperties());
 
             if (connectionVariables != null) {
+                // connectionVariables 可能是空的
                 extraCmd.putAll(connectionVariables);
             }
 
@@ -363,8 +372,11 @@ public class TConnection implements ITConnection {
 
             // 设置逻辑库默认时区
             if (logicalTimeZone != null) {
+                // SYSTEM, sun.util.calendar.ZoneInfo[id="Asia/Shanghai",offset=28800000,dstSavings=0,useDaylight=false,transitions=31,lastRule=null]
                 setTimeZoneVariable(serverVariables);
             }
+
+            /** 设置 ExecutionContext */
             // 从连接属性中加载dbPriv，只要配了就覆盖其他渠道
             loadDbPriv(executionContext);
 
@@ -379,21 +391,29 @@ public class TConnection implements ITConnection {
                 executionContext.setGroupHint(null);
             }
 
+            // appName=test@polardbx-polardbx
             executionContext.setAppName(dataSource.getAppName());
             executionContext.setSchemaName(dataSource.getSchemaName());
 
+            // poolName=ServerExecutor, poolSize=256,
             executionContext.setExecutorService(executorService);
             executionContext.setParams(params);
             executionContext.setSql(sql);
             executionContext.setExtraCmds(extraCmd);
+            // DDL 是 4;
             executionContext.setTxIsolation(transactionIsolation);
+            // sqlMode=null;
             executionContext.setSqlMode(sqlMode);
+            // net_write_timeout -> {Long@24421} 28800, time_zone -> SYSTEM
             executionContext.setServerVariables(serverVariables);
+            // read -> WRITE; pure_async_ddl_mode -> {Boolean@23967} false; trans.policy -> ALLOW_READ
             executionContext.setExtraServerVariables(extraServerVariables);
             executionContext.setUserDefVariables(userDefVariables);
+            // utf-8
             executionContext.setEncoding(encoding);
             executionContext.setConnection(this);
             executionContext.setStressTestValid(dataSource.isStressTestValid());
+            // socketTimeout=-1
             executionContext.setSocketTimeout(socketTimeout);
             executionContext.setModifySelect(false);
             executionContext.setModifySelectParallel(false);
@@ -411,6 +431,7 @@ public class TConnection implements ITConnection {
                 executionContext.setPhySqlId(0L);
             }
             if (!DynamicConfig.getInstance().enableExtremePerformance()) {
+                // 一般执行这里
                 executionContext.setRuntimeStatistics(RuntimeStatHelper.buildRuntimeStat(executionContext));
             } else {
                 executionContext.setRuntimeStatistics(RuntimeStatHelper.SHARE_RUNTIME_STATISTICS);
@@ -439,18 +460,21 @@ public class TConnection implements ITConnection {
                 executionContext.setEncoding(ddlContext.getParentDdlContext().getEncoding());
             }
             if (this.trx == null || this.trx.isClosed()) {
+                // 第1次执行 DDL 这里 ddlContext=null
                 beginTransaction();
             } else {
                 // In some cases, the transaction can't continue. Rollback
                 // statement walks rollback(), not here.
                 trx.checkCanContinue();
             }
+            // 绑定 事务 trx 到 executionContext
             executionContext.setTransaction(trx);
 
             Throwable exOfResultCursor = null;
             try {
                 AtomicBoolean trxPolicyModified = new AtomicBoolean(false);
 
+                // SPLIT
                 BatchInsertPolicy policy = getBatchInsertPolicy(extraCmd);
                 if (InsertSplitter.needSplit(sql, policy, executionContext)) {
                     executionContext.setDoingBatchInsertBySpliter(true);
@@ -544,6 +568,7 @@ public class TConnection implements ITConnection {
         if (sql.regionMatches(true, i, TRACE, 0, TRACE.length())) {
             return i + TRACE.length();
         } else {
+            // 没找到
             return -1;
         }
     }
@@ -552,6 +577,12 @@ public class TConnection implements ITConnection {
      * Separate execute(sql, ec) into two parts: plan and execute. If it's
      * writing into broadcast table and has no transaction, a new transaction
      * will be open.
+     *
+     * SQL 执行的核心逻辑, 创建执行计划;
+     * 走到这一直在 FrontendConnection.net 进入的 ServerExecutor-bucket-1-18-thread-13 线程中;
+     *
+     * @param trxPolicyModified DDL是false;
+     *
      */
     private ResultCursor executeQuery(ByteString sql, ExecutionContext executionContext,
                                       AtomicBoolean trxPolicyModified) {
@@ -560,9 +591,16 @@ public class TConnection implements ITConnection {
         }
 
         // Get all meta version before optimization
+        /** 获取内存乐观锁 StampedLock stamp[16]; 没有其他的话每一项都是256; 当前未使用 */
         final long[] metaVersions = MdlContext.snapshotMetaVersions();
 
         final Parameters originParams = executionContext.getParams().clone();
+        /**
+         * 创建逻辑执行计划, 通过 parse & optimize;
+         *
+         * 1. create table: rel#351:LogicalCreateTable.DRDS.[].any(); ast=SqlCreateTable, primary_key=(`_drds_implicit_id_` DESC), opetator=SqlSpecialOperator;
+         * 2. drop table: rel#206:LogicalDropTable.DRDS.[].any(); ast=SqlDropTable
+         */
         ExecutionPlan plan = Planner.getInstance().plan(sql, executionContext);
 
         // [mysql behavior]
@@ -577,6 +615,7 @@ public class TConnection implements ITConnection {
                 (sqlKind == SqlKind.CREATE_TABLE || sqlKind == SqlKind.CREATE_INDEX || sqlKind == SqlKind.ALTER_TABLE);
             if (saveOriginSql) {
                 if (ast instanceof SqlCreateTable) {
+                    // create table 会走到这里;
                     ((SqlCreateTable) ast).setOriginalSql(sql.toString());
                 } else if (ast instanceof SqlCreateIndex) {
                     ((SqlCreateIndex) ast).setOriginalSql(sql.toString());
@@ -613,20 +652,26 @@ public class TConnection implements ITConnection {
         // Update transaction policy for modify of broadcast table and
         // of table with global secondary index
         if (trxPolicyModified != null) {
+            // 单库单表时这里不设置;
             trxPolicyModified.set(updateTransactionAndConcurrentPolicy(plan, executionContext));
         }
 
+        /**
+         * DDL 时 enableMdl=true, requireMdl=false；
+         * DQL 时 enableMdl=true, requireMdl=true；
+         */
         final boolean enableMdl = executionContext.getParamManager().getBoolean(ConnectionParams.ENABLE_MDL);
         // For DML, meta data must not be modified after optimization and before mdl acquisition
         final boolean requireMdl;
 
         requireMdl = plan.is(MDL_REQUIRED_POLARDBX);
-        // For test purpose
+        // For test purpose; 一般是false
         final boolean testRebuild = executionContext.getParamManager().getBoolean(ConnectionParams.ALWAYS_REBUILD_PLAN);
 
         if (requireMdl && enableMdl) {
             if (!isClosed()) {
                 // Acquire meta data lock for each statement modifies table data
+                /** 获取元数据的锁 */
                 acquireTransactionalMdl(sql, plan, executionContext);
             }
 
@@ -635,7 +680,7 @@ public class TConnection implements ITConnection {
                 releaseTransactionalMdl(executionContext);
             }
 
-            // If any meta is modified during optimization, rebuild plan
+            /** If any meta is modified during optimization, rebuild plan */
             if (metaVersionChanged(plan, metaVersions, executionContext) || testRebuild) {
                 if (executionContext.isExecutingPreparedStmt() || originParams.getBatchSize() <= 0 && GeneralUtil
                     .isEmpty(originParams.getFirstParameter())) {
@@ -672,7 +717,10 @@ public class TConnection implements ITConnection {
             ((ITsoTransaction) trx).updateSnapshotTimestamp();
         }
 
+        // 绑定 ExecutionPlan 到 executionContext
         executionContext.setFinalPlan(plan);
+
+        // 检查执行权限
         if (!executionContext.isExecutingPreparedStmt()) {
             PolarPrivilegeUtils.checkPrivilege(plan, executionContext);
         }
@@ -683,6 +731,8 @@ public class TConnection implements ITConnection {
             CclManager.getService().begin(executionContext);
         }
 
+        /** 执行开始 */
+        // 需要的上下文信息都存储在 executionContext
         ResultCursor resultCursor = executor.execute(plan, executionContext);
         updateTableStatistic(plan, resultCursor, executionContext);
         return resultCursor;
@@ -739,6 +789,15 @@ public class TConnection implements ITConnection {
         }
     }
 
+    /**
+     * 直接检查 SchemaManager 是不是 Expired;
+     * 没有用到 metaVersions;
+     *
+     * @param plan
+     * @param metaVersions
+     * @param executionContext
+     * @return
+     */
     private boolean metaVersionChanged(ExecutionPlan plan, long[] metaVersions,
                                        ExecutionContext executionContext) {
         if (executionContext.getSchemaManagers().values().stream().anyMatch(s -> s.isExpired())) {
@@ -954,7 +1013,8 @@ public class TConnection implements ITConnection {
     }
 
     /**
-     * acquire mdl for each table modified
+     * acquire mdl for each table modified；
+     * 注意 DQL 也可能会上读锁；
      */
     private void acquireTransactionalMdl(final ByteString sql, final ExecutionPlan plan, final ExecutionContext ec) {
         final MdlContext mdlContext = getMdlContext();
@@ -1003,6 +1063,7 @@ public class TConnection implements ITConnection {
                             executionContext.getTraceId(), sql, frontendConnectionInfo));
                     }
                     if (!isNewPartDb && meta.getSchemaDigestList() != null) {
+                        /** 上 MDL_SHARED_WRITE 读锁 */
                         mdlContext.acquireLock(MdlRequest.getTransactionalDmlMdlRequest(trxId,
                             schemaName, meta.getSchemaDigest(trxId),
                             executionContext.getTraceId(), sql, frontendConnectionInfo));
@@ -1017,6 +1078,9 @@ public class TConnection implements ITConnection {
 
     }
 
+    /**
+     * 每次请求执行结束后 都会清空 executionContext 的 schemaManagers 信息;
+     */
     private void refreshTableMeta() {
         if (executionContext != null) {
             executionContext.refreshTableMeta();
@@ -1024,7 +1088,8 @@ public class TConnection implements ITConnection {
     }
 
     /**
-     * release transactional mdl by transaction id
+     * release transactional mdl by transaction id;
+     * 每次请求结束都会执行 释放 mdl锁;
      */
     private void releaseTransactionalMdl(ExecutionContext ec) {
         final MdlContext mdlContext = getMdlContext();
@@ -1061,12 +1126,15 @@ public class TConnection implements ITConnection {
     private void loadDbPriv(ExecutionContext executionContext) {
         PrivilegeContext pc = executionContext.getPrivilegeContext();
         if (pc != null) {
+            // 第一次执行 create table 可走到这
             DbPriv dbPriv = pc.getDatabasePrivilege();
+            // 只是从配置文件里获取， 默认没配置是 -1
             long dbPrivFromProperties = executionContext.getParamManager().getLong(ConnectionParams.DB_PRIV);
             if (dbPrivFromProperties > 0) {
                 // 只要配了就覆盖其他渠道
                 if (dbPriv == null) {
                     dbPriv = new DbPriv(dataSource.getSchemaName());
+                    // 权限缓存在上下文
                     pc.setDatabasePrivilege(dbPriv);
                 }
                 dbPriv.loadPriv(dbPrivFromProperties);
@@ -1088,7 +1156,11 @@ public class TConnection implements ITConnection {
         boolean isExecutingPreparedStmt = false;
         PreparedStmtCache preparedStmtCache = null;
 
+        /**
+         * java的好处是一切都是引用，只读对象的引用可多线程共享，不像cpp得考虑指针对象的内存释放，这也造成了对象是否复制的问题;
+         **/
         if (this.executionContext != null) {
+            // 一般来说 executionContext 不是 null;
             privilegeContext = this.executionContext.getPrivilegeContext();
             connId = this.executionContext.getConnId();
             txId = this.executionContext.getTxId();
@@ -1106,6 +1178,7 @@ public class TConnection implements ITConnection {
             privilegeContext.setSchema(dataSource.getSchemaName());
         }
         if (isAutoCommit) {
+            /** 注意 auto commit 会创建新请求 对应的 新的 ExecutionContext */
             // 即使为autoCommit也需要记录
             // 因为在JDBC规范中，只要在statement.execute执行之前,设置autoCommit=false都是有效的
             this.executionContext = new ExecutionContext();
@@ -1565,6 +1638,11 @@ public class TConnection implements ITConnection {
         beginTransaction(this.isAutoCommit);
     }
 
+    /**
+     * 配置设置到 executionContext;
+     *
+     * @param autoCommit
+     */
     private void beginTransaction(boolean autoCommit) {
         lock.lock();
 
@@ -1575,11 +1653,14 @@ public class TConnection implements ITConnection {
 
             // SET 设置优先于 Hint 及全局配置
             if (trxPolicy == null) {
+                // TSO
                 trxPolicy = loadTrxPolicy(executionContext);
             }
             if (shareReadView == ShareReadViewPolicy.DEFAULT) {
+                // shareReadView 默认是 ON
                 loadShareReadView(executionContext);
             }
+            // groupParallelism=8
             if (groupParallelism == null) {
                 // When group parallelism is not set ,use default value of ConnectionParams.GROUP_PARALLELISM
                 groupParallelism = this.executionContext.getParamManager().getLong(ConnectionParams.GROUP_PARALLELISM);
@@ -1588,6 +1669,7 @@ public class TConnection implements ITConnection {
             boolean readOnly =
                 this.readOnly || (ConfigDataMode.isSlaveMode() && executionContext.getParamManager().getBoolean(
                     ConnectionParams.ENABLE_CONSISTENT_REPLICA_READ));
+            // 单条DDL是 AUTO_COMMIT
             TransactionClass trxConfig = trxPolicy.getTransactionType(autoCommit, readOnly);
             if (logicalTimeZone != null) {
                 setTimeZoneVariable(serverVariables);
@@ -1602,6 +1684,7 @@ public class TConnection implements ITConnection {
             executionContext.setShareReadView(shareReadView == ShareReadViewPolicy.ON);
             executionContext.setGroupParallelism(groupParallelism);
 
+            // 实际上返回 TransactionManager
             ITransactionManager tm = this.dataSource.getConfigHolder().getExecutorContext().getTransactionManager();
             this.trx = tm.createTransaction(trxConfig, executionContext);
         } finally {

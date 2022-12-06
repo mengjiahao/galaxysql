@@ -33,6 +33,8 @@ import com.alibaba.polardbx.statistics.RuntimeStatistics;
 import org.apache.calcite.rel.RelNode;
 
 /**
+ * CREATE_TABLE 也走这个物理执行计划, 会最终调用 DN 执行 DDL；
+ *
  * Created by chuanqin on 17/7/5.
  */
 public class MySingleTableScanHandler extends HandlerCommon {
@@ -77,7 +79,10 @@ public class MySingleTableScanHandler extends HandlerCommon {
                 }
             }
         } else {
-            // For PhyDdlTableOperation
+            /**
+             * For PhyDdlTableOperation；
+             * 调用 DN 执行 DDL;
+             **/
             cursor = repo.getCursorFactory().repoCursor(executionContext, logicalPlan);
         }
         return cursor;

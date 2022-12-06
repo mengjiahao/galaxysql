@@ -71,6 +71,9 @@ import java.util.TreeSet;
 
 import static com.alibaba.polardbx.gms.metadb.table.TableInfoManager.PhyInfoSchemaContext;
 
+/**
+ * 通过 TableInfoManager 调用 JDBC 修改 metadb 元数据;
+ */
 public class TableMetaChanger {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TableMetaChanger.class);
@@ -220,9 +223,22 @@ public class TableMetaChanger {
         return phyInfoSchemaContext;
     }
 
+    /**
+     * metadb 元数据 status 变更为 PUBLIC;
+     * 通过 MetaDbConfigManager 通知 元数据 在CN间同步;
+     *
+     * @param metaDbConn
+     * @param schemaName
+     * @param tableName
+     * @param sequenceRecord
+     * @param tableInfoManager
+     */
     public static void triggerSchemaChange(Connection metaDbConn, String schemaName, String tableName,
                                            SequenceBaseRecord sequenceRecord, TableInfoManager tableInfoManager) {
+        // polardbx.meta.tables.test
         String tableListDataId = MetaDbDataIdBuilder.getTableListDataId(schemaName);
+        // dataId=schemaName.tableName
+        // polardbx.meta.table.test.tb1
         String tableDataId = MetaDbDataIdBuilder.getTableDataId(schemaName, tableName);
 
         // Show all table meta.
@@ -235,6 +251,12 @@ public class TableMetaChanger {
         CONFIG_MANAGER.notify(tableListDataId, metaDbConn);
     }
 
+    /**
+     * 通知 CONFIG_MANAGER 元数据已经更新;
+     *
+     * @param schemaName
+     * @param logicalTableName
+     */
     public static void afterNewTableMeta(String schemaName, String logicalTableName) {
         String tableListDataId = MetaDbDataIdBuilder.getTableListDataId(schemaName);
         String tableDataId = MetaDbDataIdBuilder.getTableDataId(schemaName, logicalTableName);
@@ -262,9 +284,20 @@ public class TableMetaChanger {
         tableInfoManager.showTable(schemaName, logicalTableName, null);
     }
 
+    /**
+     * 注意删除 metadb.table 后，要通过 CONFIG_MANAGER 进行异步通知;
+     *
+     * @param metaDbConnection
+     * @param schemaName
+     * @param logicalTableName
+     * @param withTablesExtOrPartition
+     * @param executionContext
+     */
     public static void removeTableMeta(Connection metaDbConnection, String schemaName, String logicalTableName,
                                        boolean withTablesExtOrPartition, ExecutionContext executionContext) {
+        // polardbx.meta.tables.test
         String tableListDataId = MetaDbDataIdBuilder.getTableListDataId(schemaName);
+        // polardbx.meta.table.test.tb2
         String tableDataId = MetaDbDataIdBuilder.getTableDataId(schemaName, logicalTableName);
 
         // Remove sequence meta if exists.
@@ -285,9 +318,10 @@ public class TableMetaChanger {
             tableInfoManager.removeTableExt(schemaName, logicalTableName);
         }
 
-        // Unregister the table data id.
+        /** Unregister the table data id. 删除子节点 */
         CONFIG_MANAGER.unregister(tableDataId, metaDbConnection);
 
+        /** notify schema data id. 通知 父节点 */
         CONFIG_MANAGER.notify(tableListDataId, metaDbConnection);
 
         if (sequenceRecord != null) {
@@ -295,6 +329,11 @@ public class TableMetaChanger {
         }
     }
 
+    /**
+     * 同步 metadb config_listener 已经更新，并 reload partition rule表;
+     * @param schemaName
+     * @param logicalTableName
+     */
     public static void afterRemovingTableMeta(String schemaName, String logicalTableName) {
         String tableListDataId = MetaDbDataIdBuilder.getTableListDataId(schemaName);
         CommonMetaChanger.sync(tableListDataId);

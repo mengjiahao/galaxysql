@@ -674,6 +674,8 @@ public class SqlToRelConverter {
     /**
      * Converts an unvalidated query's parse tree into a relational expression.
      *
+     * 比如 SqlCreateTable -> 转为 Calcite.CreateTable;
+     *
      * @param query Query to convert
      * @param needsValidation Whether to validate the query before converting;
      * <code>false</code> if the query has already been validated.

@@ -23,7 +23,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 /**
- * @author chenghui.lch
+ * @author chenghui.lch;
+ * 看起来是 polardb 实例信息;
  */
 public class StorageInfoRecord implements SystemTableRecord {
 

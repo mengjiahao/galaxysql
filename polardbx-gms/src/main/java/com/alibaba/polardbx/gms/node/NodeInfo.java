@@ -18,12 +18,19 @@ package com.alibaba.polardbx.gms.node;
 
 import javax.sql.DataSource;
 
+/**
+ * 节点信息(host, port, connection, cpu-core)
+ */
 public interface NodeInfo {
 
     String getHost();
 
     String getHostPort();
 
+    /**
+     * 相当于 connection
+     * @return
+     */
     DataSource getManagerDataSource();
 
     String getServerKey();

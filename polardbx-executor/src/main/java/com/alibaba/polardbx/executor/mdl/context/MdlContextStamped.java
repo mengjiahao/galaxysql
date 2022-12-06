@@ -35,13 +35,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.StampedLock;
 
 /**
- * 锁的所有者的上下文，每个前端连接都有一个对应的上下文
+ * 锁的所有者的上下文，每个前端连接都有一个对应的上下文;
+ * 单个连接对应的锁;
+ * 没有 用到 乐观锁机制，用到的是 更公平的读写锁;
+ *
  *
  * @author chenmo.cm
  */
 public class MdlContextStamped extends MdlContext {
     private static final Logger logger = LoggerFactory.getLogger(MdlContextStamped.class);
 
+    /**
+     * (trxId, traceId, sql, frontend);
+     * 只用到了 trx 的标志;
+     */
     public class TransactionInfo {
         private final long trxId;
         private final String traceId;
@@ -90,11 +97,13 @@ public class MdlContextStamped extends MdlContext {
     }
 
     /**
-     * 当前上下文中已经获取到的锁, 按照事务 ID 分组
+     * 当前上下文中已经获取到的锁, 按照事务 ID 分组；
+     * 注意 MdlTicket 是引用 MdlManagerStamped 的;
      */
     private final Map<TransactionInfo, Map<MdlKey, MdlTicket>> tickets;
     /**
-     * lock for protection of local field tickets
+     * lock for protection of local field tickets;
+     * 当读写锁 保护 tickets，因为 遍历 tickets 操作不是线程安全的;
      */
     private final StampedLock lock = new StampedLock();
 
@@ -108,18 +117,29 @@ public class MdlContextStamped extends MdlContext {
         return tickets;
     }
 
+    /**
+     * trx 有对应的 MdlRequest，根据 MdlRequest 上悲观读写锁;
+     *
+     * schema -> MdlManagerStamped -> request.getKey() -> MdlTicket;
+     *
+     * @param request MdlRequest
+     * @return
+     */
     @Override
     public MdlTicket acquireLock(@NotNull final MdlRequest request) {
         final MdlManager mdlManager = getMdlManager(request.getKey().getDbName());
 
+        /** 为啥先要上 读锁？ tickets 本身可并发修改，但 遍历 tickets 操作不是线程安全的 */
         final long l = lock.readLock();
         try {
             final Map<MdlKey, MdlTicket> ticketMap = tickets.computeIfAbsent(
                 new TransactionInfo(request.getTrxId(), request.getTraceId(), request.getSql(), request.getFrontend()),
                 tid -> new ConcurrentHashMap<>());
 
+            // 注意 mdlManager 中也有一份tickets
             return ticketMap.compute(request.getKey(), (key, ticket) -> {
                 if (null == ticket || !ticket.isValidate()) {
+                    /** 不存在才要重新创建 */
                     ticket = mdlManager.acquireLock(request, this);
                 }
                 return ticket;
@@ -137,6 +157,11 @@ public class MdlContextStamped extends MdlContext {
         return waitForList;
     }
 
+    /**
+     * 释放 MdlTicket key 相关的所有锁;
+     * @param trxId transaction id
+     * @param ticket mdl ticket
+     */
     @Override
     public void releaseLock(@NotNull Long trxId, @NotNull final MdlTicket ticket) {
         final MdlManager mdlManager = getMdlManager(ticket.getLock().getKey().getDbName());
@@ -158,6 +183,12 @@ public class MdlContextStamped extends MdlContext {
         }
     }
 
+    /**
+     * 释放 trxId 对应的所有锁；
+     * 用于 finally 中保护;
+     *
+     * @param trxId
+     */
     @Override
     public void releaseTransactionalLocks(Long trxId) {
         final long l = lock.readLock();
@@ -172,6 +203,10 @@ public class MdlContextStamped extends MdlContext {
         }
     }
 
+    /**
+     * 清空上下文相关的所有 tickets；
+     * 唯一 lock 上写锁的地方，主要是 遍历 tickets 操作不是线程安全的;
+     */
     @Override
     public void releaseAllTransactionalLocks() {
 

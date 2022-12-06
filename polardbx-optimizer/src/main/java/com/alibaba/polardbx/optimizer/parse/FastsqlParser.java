@@ -95,6 +95,15 @@ public class FastsqlParser {
         return parse(sql, params, new ContextParameters(testMode), executionContext);
     }
 
+    /**
+     * 参数化，返回结果没有依赖 元数据;
+     * @param sql
+     * @param params
+     * @param contextParameters
+     * @param executionContext
+     * @return
+     * @throws SqlParserException
+     */
     public SqlNodeList parse(final ByteString sql, List<?> params, ContextParameters contextParameters,
                              ExecutionContext executionContext)
         throws SqlParserException {
@@ -126,6 +135,7 @@ public class FastsqlParser {
         SqlNodeList sqlNodeList = null;
 
         if (!enableTaskCpu) {
+            // SQL 解析; sqlNodeList 是 SqlCreateTable;
             sqlNodeList = doParse(sql, params, parserParameters, executionContext);
             if (parserParameters.isUseHint() && executionContext != null) {
                 executionContext.setUseHint(true);
@@ -151,6 +161,16 @@ public class FastsqlParser {
         return sqlNodeList;
     }
 
+    /**
+     * 解析生成 AST;
+     *
+     * @param sql
+     * @param params
+     * @param contextParameters
+     * @param ec
+     * @return
+     * @throws SqlParserException
+     */
     protected SqlNodeList doParse(final ByteString sql, List<?> params, ContextParameters contextParameters,
                                   ExecutionContext ec)
         throws SqlParserException {
@@ -161,6 +181,15 @@ public class FastsqlParser {
         }
     }
 
+    /**
+     * 执行 SQL parse;
+     *
+     * @param sql
+     * @param params
+     * @param contextParameters
+     * @param ec
+     * @return
+     */
     protected SqlNodeList realParse(ByteString sql, List<?> params, ContextParameters contextParameters,
                                     ExecutionContext ec) {
         try {

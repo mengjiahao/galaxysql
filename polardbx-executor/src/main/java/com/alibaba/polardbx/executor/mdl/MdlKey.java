@@ -22,7 +22,8 @@ import com.alibaba.polardbx.executor.mpp.metadata.NotNull;
 import java.util.Objects;
 
 /**
- * MDL 锁对象的标识，是一个三元组 namespace + dbName + tableName
+ * MDL 锁对象的标识，是一个三元组 namespace + dbName + tableName；
+ * 锁的粒度 一般在 表级;
  *
  * @author chenmo.cm
  */

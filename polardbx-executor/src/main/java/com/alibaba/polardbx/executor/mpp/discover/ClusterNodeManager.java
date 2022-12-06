@@ -40,6 +40,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
+/**
+ * 管理集群节点信息; 管理节点集合;
+ * 只包含 CN;
+ */
 public class ClusterNodeManager implements InternalNodeManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ClusterNodeManager.class);

@@ -98,6 +98,10 @@ public abstract class GenericObjectListListener extends AbstractLifecycle implem
      */
     protected abstract ConfigListener getObjectListener(SystemTableRecord record);
 
+    /**
+     * 订阅新的table 到 CONFIG_MANAGER;
+     * @param isInit
+     */
     private void bindNewListeners(boolean isInit) {
         // Bind newly registered dataIds and object listeners.
         List<SystemTableRecord> records = fetchRecords();
@@ -114,6 +118,7 @@ public abstract class GenericObjectListListener extends AbstractLifecycle implem
                     CONFIG_MANAGER.bindListener(objectDataId, objectListener);
 
                     if (!isInit) {
+                        /** 新的table，触发 TableMetaListener */
                         // Trigger table meta reload right now to avoid subsequent sync issue for table dataId.
                         objectListener.onHandleConfig(objectDataId, NOOP_OP_VERSION);
                     }

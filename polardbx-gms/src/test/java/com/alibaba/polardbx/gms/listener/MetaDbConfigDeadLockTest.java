@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author chenghui.lch
+ * diamond 实现类似 metadb lock 的功能;
  */
 @Ignore
 public class MetaDbConfigDeadLockTest {
@@ -87,6 +88,13 @@ public class MetaDbConfigDeadLockTest {
             return null;
         }
 
+        /**
+         * 相当于 MetaDbConfigManager.addDataIdInfoIntoDb；
+         *
+         * @param dataId
+         * @param metaDbConn
+         * @return
+         */
         protected ConfigListenerRecord addDataIdInfoIntoDb(String dataId, Connection metaDbConn) {
             try {
                 ConfigListenerRecord dataIdInfo = null;
@@ -95,12 +103,13 @@ public class MetaDbConfigDeadLockTest {
                         ConfigListenerAccessor configListenerAccessor = new ConfigListenerAccessor();
                         configListenerAccessor.setConnection(conn);
                         try {
+                            // 开手动事务
                             conn.setAutoCommit(false);
 
                             // add dataId into metaDB
                             while (true) {
                                 try {
-
+                                    // select for update
                                     dataIdInfo = configListenerAccessor.getDataId(dataId, true);
                                     if (dataIdInfo != null && dataIdInfo.status == ConfigListenerRecord.DATA_ID_STATUS_NORMAL) {
                                         // dataId has already exists, so ignore
@@ -111,7 +120,7 @@ public class MetaDbConfigDeadLockTest {
                                         } catch (Throwable ex) {
                                             //
                                         }
-
+                                        // 已经存在则跳出
                                         break;
                                     }
 
@@ -187,19 +196,23 @@ public class MetaDbConfigDeadLockTest {
     @Test
     public void testDeadLock() throws Exception {
 
+        // ExecutorService.submit 返回 Future
         final ExecutorService threadPool = Executors.newCachedThreadPool();
         final List<Callable<Void>> tasks = new ArrayList<>();
 
 
 
+        // 加入 dataId
         tasks.add(new RegisterTask());
         tasks.add(new RegisterTask());
         tasks.add(new RegisterTask());
         tasks.add(new RegisterTask());
 
+        // 不停地删除 dataId
         tasks.add(() -> {
             while (!isStop.get()) {
                 try {
+                    // MetaDbConfigManager 操作 ConfigListenerAccessor
                     MetaDbConfigManager.getInstance().unregister(data_id,null);
                 } catch (Throwable ex) {
                     logger.warn(ex);
@@ -237,6 +250,7 @@ public class MetaDbConfigDeadLockTest {
             listenerRsMap.put(testDataId1, new ArrayList<>());
             listenerRsMap.put(testDataId2, new ArrayList<>());
 
+            // 绑定 (dataId, listener) 事件处理方法
             manager.bindListener(testDataId1, new ConfigListener() {
                 @Override
                 public void onHandleConfig(String dataId, long newOpVersion) {

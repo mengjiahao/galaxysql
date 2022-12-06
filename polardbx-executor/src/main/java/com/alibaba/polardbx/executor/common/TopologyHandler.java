@@ -53,7 +53,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * group以及其对应的执行器
+ * group以及其对应的执行器;
+ *
+ * 内部 Matrix 存储有 DN 信息;
+ *
+ * TopologyHandler [executorMap={TEST_SINGLE_GROUP=GroupExecutor [groupName=TEST_SINGLE_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@ba03302], TEST_000003_GROUP=GroupExecutor [groupName=TEST_000003_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@f9fa6ae], TEST_000002_GROUP=GroupExecutor [groupName=TEST_000002_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@4a9d3939], TEST_000006_GROUP=GroupExecutor [groupName=TEST_000006_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@71af1489], TEST_000001_GROUP=GroupExecutor [groupName=TEST_000001_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@7b1d119d], TEST_000004_GROUP=GroupExecutor [groupName=TEST_000004_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@9c56286], TEST_000000_GROUP=GroupExecutor [groupName=TEST_000000_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@2ab2c676], TEST_000005_GROUP=GroupExecutor [groupName=TEST_000005_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@233094f5], TEST_000007_GROUP=GroupExecutor [groupName=TEST_000007_GROUP, type=MYSQL_JDBC, dataSource=com.alibaba.polardbx.group.jdbc.TGroupDataSource@3032e8f7]}];
+ * 默认有 TEST_SINGLE_GROUP 与 8个分组 TEST_000007_GROUP;
  *
  * @author mengshi.sunmengshi 2013-11-27 下午4:00:33
  * @since 5.0.0
@@ -70,6 +75,7 @@ public class TopologyHandler extends AbstractLifecycle {
     private String schemaName;
     private Matrix matrix = new Matrix();
     private Map<String, Object> connProperties;
+    /** 绑定到 metadb.config_listener */
     private TopologyGmsListener topologyGmsListener;
     transient private List<TopologyHandler> subTopologyHandlers = new ArrayList();
     private RepositoryHolder repositoryHolder;
@@ -320,6 +326,9 @@ public class TopologyHandler extends AbstractLifecycle {
         return "TopologyHandler [executorMap=" + executorMap + "]";
     }
 
+    /**
+     * 更新 Matrix;
+     */
     public class TopologyGmsListener implements ConfigListener {
 
         protected String schemaName;

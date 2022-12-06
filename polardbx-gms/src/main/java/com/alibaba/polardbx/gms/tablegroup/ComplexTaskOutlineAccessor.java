@@ -296,6 +296,8 @@ public class ComplexTaskOutlineAccessor extends AbstractAccessor {
 
     public List<ComplexTaskOutlineRecord> getAllUnFinishParentComlexTask(String schemaName) {
         try {
+            // select `id`,`job_id`, `gmt_create`,`gmt_modified`,`table_schema`,`tg_name`,`object_name`,`type`, `status`,
+            // `extra`, `source_sql`, `sub_task` from complex_task_outline where status<>-1 and sub_task=0 and table_schema=?;
             List<ComplexTaskOutlineRecord> records;
             Map<Integer, ParameterContext> params = new HashMap<>();
             MetaDbUtil.setParameter(1, params, ParameterMethod.setString, schemaName);

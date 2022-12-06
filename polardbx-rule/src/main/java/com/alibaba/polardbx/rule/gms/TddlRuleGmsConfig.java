@@ -97,6 +97,13 @@ public class TddlRuleGmsConfig extends TddlRuleConfig {
         getVersionedTableNames().put(version, Maps.newConcurrentMap());
     }
 
+    /**
+     * 直接更新 vtrs；
+     * 从 获取 metadb 元数据信息 TablesExtRecord 更新到 TableRule；
+     * TablesExtRecord -> TableRule;
+     * @param tableName
+     * @param overridden
+     */
     public void addRule(String tableName, boolean overridden) {
         synchronized (vtrs) {
             VirtualTableRoot virtualTableRoot = vtrs.get(versionIndex.get(0));
@@ -126,6 +133,7 @@ public class TddlRuleGmsConfig extends TddlRuleConfig {
                         return;
                     }
                     // Add new table rule
+                    //
                     TableRule tableRule = initTableRule(record);
                     virtualTableMap.put(tableName, tableRule);
 

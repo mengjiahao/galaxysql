@@ -235,7 +235,7 @@
               `id` bigint unsigned not null auto_increment,
               `table_catalog` varchar(512) default 'def',
               `table_schema` varchar(64) not null,
-              `table_name` varchar(64) not null,
+              `table_name` varchar(64) not null,            // 表名相当于父指针
               `non_unique` bigint(1) not null default '0',
               `index_schema` varchar(64) not null,
               `index_name` varchar(64) not null,
@@ -256,7 +256,7 @@
               `version` bigint not null default '1',
               `flag` bigint unsigned default '0',
               primary key (`id`),
-              unique key (`table_schema`, `table_name`, `index_name`, `column_name`),
+              unique key (`table_schema`, `table_name`, `index_name`, `column_name`),  // (index_name, column_name) 意味着有多行代表1个索引？
               key `i_index_name_version` (`index_name`, `version`),
               key (`table_name`)
             ) charset=utf8

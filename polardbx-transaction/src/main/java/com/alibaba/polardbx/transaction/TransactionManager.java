@@ -190,6 +190,13 @@ public class TransactionManager extends AbstractLifecycle implements ITransactio
         return timestampOracle;
     }
 
+    /**
+     * TConnection.beginTransaction 时调用;
+     *
+     * @param trxConfig
+     * @param executionContext
+     * @return
+     */
     @Override
     public ITransaction createTransaction(TransactionClass trxConfig, ExecutionContext executionContext) {
         String expectedTrxConfig = executionContext.getParamManager().getString(ConnectionParams.TRX_CLASS_REQUIRED);
@@ -223,6 +230,7 @@ public class TransactionManager extends AbstractLifecycle implements ITransactio
             trx = new ReadOnlyTsoTransaction(executionContext, this);
             break;
         case AUTO_COMMIT:
+            // (AUTO_COMMIT, isolationLevel=4)
             trx = new AutoCommitTransaction(executionContext, this);
             break;
         case ALLOW_READ_CROSS_DB:
@@ -345,6 +353,9 @@ public class TransactionManager extends AbstractLifecycle implements ITransactio
         }
     }
 
+    /**
+     * 如果需要配置事务超时，会调用 AsyncTaskQueue.scheduleKillTimeoutTransactionTask;
+     */
     public void enableKillTimeoutTransaction() {
         if (ConfigDataMode.isFastMock() || SystemDbHelper.isDBBuildInExceptCdc(schemaName)) {
             return;
@@ -355,6 +366,7 @@ public class TransactionManager extends AbstractLifecycle implements ITransactio
             return;
         }
         if (killTimeoutTransactionTask == null) {
+            // 默认无超时;
             synchronized (this) {
                 if (killTimeoutTransactionTask == null) {
                     AsyncTaskQueue asyncQueue = executor.getAsyncQueue();

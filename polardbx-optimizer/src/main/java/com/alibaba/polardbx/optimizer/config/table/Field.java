@@ -35,7 +35,8 @@ public class Field {
     private String originColumnName = null;
 
     /**
-     * 当前列的类型
+     * 当前列的类型;
+     * 用的是 Calcite 的 datatype;
      */
     private RelDataType relDataType = null;
 

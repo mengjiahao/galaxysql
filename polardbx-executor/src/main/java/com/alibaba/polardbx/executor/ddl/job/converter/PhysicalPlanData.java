@@ -37,22 +37,36 @@ import java.util.Map;
 @Data
 public class PhysicalPlanData {
 
+    /** test */
     private String schemaName;
 
+    /** tb1 */
     private String logicalTableName;
     private String newLogicalTableName;
 
     private String indexName;
 
+    /**
+     * 单库单表:
+     * defaultDbIndex=TEST_SINGLE_GROUP,
+     * defaultPhyTableName=tb1_WT7R,
+     *
+     **/
     private String defaultDbIndex;
     private String defaultPhyTableName;
 
+    /** table meta, 无列信息*/
     private TablesExtRecord tablesExtRecord;
+    /**
+     * 单库单表:
+     * (TEST_SINGLE_GROUP, [tb1_WT7R]);
+     **/
     private Map<String, List<List<String>>> tableTopology;
     private Map<String, List<PhysicalPartitionInfo>> physicalPartitionTopology;
 
     private SqlKind kind;
 
+    /** DN SQL */
     private String sqlTemplate;
     private List<Map<Integer, ParameterContext>> paramsList;
 
@@ -66,6 +80,7 @@ public class PhysicalPlanData {
     private boolean temporary;
 
     private SequenceBean sequence;
+    /** DN DDL*/
     private String createTablePhysicalSql;
 
     private PartitionInfo partitionInfo;

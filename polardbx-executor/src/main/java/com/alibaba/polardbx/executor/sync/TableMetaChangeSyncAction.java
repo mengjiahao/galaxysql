@@ -25,6 +25,7 @@ import com.alibaba.polardbx.optimizer.config.table.SchemaManager;
 
 /**
  * For PolarDB-X only.
+ * 调用 SchemaManager.tonewversion 更新 schame缓存;
  */
 public class TableMetaChangeSyncAction implements ISyncAction {
     protected final static Logger logger = LoggerFactory.getLogger(TableMetaChangeSyncAction.class);

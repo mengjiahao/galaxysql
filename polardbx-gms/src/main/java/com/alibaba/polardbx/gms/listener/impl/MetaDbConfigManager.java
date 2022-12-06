@@ -56,9 +56,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Manager all listener for opVersion update of dataId
+ * Manager all listener for opVersion update of dataId;
  *
  * @author chenghui.lch
+ *
+ * 做轮洵与定时任务 通过 ConfigListenerAccessor 探测 metadb 系统表 config_listener, 通知调用 onHandleConfig;
+ * metadb 通过 config_listener 实现 通知与订阅 功能;
+ * 类似于 ZK 通知订阅机制，比如路径 /a/b 下删除 b，要通知 /a;
+ *
+ * DDL job 中 TableMetaChanger 会 register;
  */
 public class MetaDbConfigManager extends AbstractLifecycle implements ConfigManager {
 
@@ -73,12 +79,14 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
     // time interval for scaning the gmtModified of dataId, unit: min
     protected static int TIME_INTERVAL_FOR_SCAN_MODIFIED_DATA_ID = 120;
 
+    /** 业务线程注册 (dataId, record.opVersion, ConfigListener) 到 dataIdContextMap; */
     protected Map<String, DataIdContext> dataIdContextMap = new ConcurrentHashMap<>();
 
     protected volatile Date lastScanTimestamp = null;
     protected final Scanner scanner = new Scanner(this);
     protected final Notifier notifier = new Notifier(this);
 
+    /** 每秒轮询一次; dataIdScanTaskExecutor 产生事件; dataIdNotifyTaskExecutor 分发事件; listenerTaskExecutor 处理事件; */
     protected final ScheduledExecutorService dataIdScanTaskExecutor = Executors
         .newSingleThreadScheduledExecutor(new NamedThreadFactory("DataId-Scanner-Executor", true));
     protected final ScheduledExecutorService dataIdNotifyTaskExecutor = Executors
@@ -94,16 +102,23 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
     protected static MetaDbConfigManager instance = new MetaDbConfigManager();
 
     /**
-     * DataIdContext maintains its config listener list and the tasks from config listeners
+     * DataIdContext maintains its config listener list and the tasks from config listeners.
+     * 本质上 DataIdContext 相当于一个通知要处理 dataId 的信号，不包含具体要做的事件;
      */
     protected static class DataIdContext {
         protected String dataId;
+        /** 有序版本号，被 onHandleConfig 处理后会增加;
+         * 更新内存中 dataIdContext.currOpVersion 标志本节点已处理;
+         * 可能被 listenerTaskExecutor 多线程并发修改; */
         protected volatile long currOpVersion = -1;
+        /** 事件队列; 队列事件可并行执行, 只要确保处理最新opVersion事件; */
         protected Deque<OpVersionChangeEvent> changeEventQueue = new LinkedBlockingDeque<>(MAX_QUEUE_LEN);
 
         protected volatile ConfigListener dataIdListener = null;
+        /** 感觉用处不大; */
         protected volatile Future listenerTaskFuture = null;
         protected volatile boolean isRemoved = false;
+        /** 保护 listenerTaskExecutor 多线程 处理同一个dataId的事件 onHandleConfig */
         protected ReentrantLock handlingLock = new ReentrantLock();
 
         public DataIdContext(String dataId, long opVer, ConfigListener configListener) {
@@ -114,7 +129,7 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
     }
 
     /**
-     * OpVersionChangeEvent means
+     * OpVersionChangeEvent means (dataId, opVersion, changeTimestamp);
      */
     protected static class OpVersionChangeEvent {
         protected String dataId;
@@ -128,6 +143,10 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     * 从 meta config_listener 表中扫描事件信息，加入相应 record.opVersion 事件到队列，与其他节点 定时同步事件 opVersion;
+     * 每1s 轮询scan;
+     */
     protected static class Scanner implements Runnable {
 
         MetaDbConfigManager manager;
@@ -150,6 +169,7 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                 ConfigListenerAccessor configListenerAccessor = new ConfigListenerAccessor();
                 configListenerAccessor.setConnection(conn);
                 List<ConfigListenerRecord> datas = null;
+                // 从 config_listener 表中拉取信息
                 if (manager.lastScanTimestamp == null) {
                     // First scan, scan all dataId
                     datas = configListenerAccessor.getAllDataIds();
@@ -161,11 +181,14 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                         configListenerAccessor.getDataIds(MetaDbConfigManager.TIME_INTERVAL_FOR_SCAN_MODIFIED_DATA_ID);
                 }
 
+                // 扫描 config_listener 表中记录
                 for (int i = 0; i < datas.size(); i++) {
                     ConfigListenerRecord record = datas.get(i);
                     String dataId = record.dataId;
                     int dataIdStatus = record.status;
                     long newOpVersion = record.opVersion;
+
+                    /** 只看在 dataIdContextMap 已经存在的? **/
                     if (manager.dataIdContextMap.containsKey(dataId)) {
 
                         if (dataIdStatus == ConfigListenerRecord.DATA_ID_STATUS_REMOVED) {
@@ -179,16 +202,21 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                         // Check if newOpVer has already exist in  dataIdInfo.changeEventQueue
                         // if exists, should ignored
                         synchronized (dataIdContext) {
+                            /** dataIdContext.currOpVersion < newOpVersion 代表存在还未处理的事件(远程节点通知的)*/
+                            // 需要确保 dataIdContext.changeEventQueue 最后的事件的版本号 >= 持久化的newOpVersion
                             if (dataIdContext.currOpVersion < newOpVersion) {
                                 if (dataIdContext.dataIdListener != null) {
                                     OpVersionChangeEvent lastChangeEvent = dataIdContext.changeEventQueue.peekLast();
                                     int queueSize = dataIdContext.changeEventQueue.size();
                                     boolean needAddNewEvent = true;
+                                    // lastChangeEvent.opVersion >= newOpVersion 表示事件继续要处理
                                     boolean lastEventOpVerHigherNewOpVer = lastChangeEvent == null ? false : lastChangeEvent.opVersion >= newOpVersion;
                                     if (lastChangeEvent != null && lastEventOpVerHigherNewOpVer) {
+                                        // 保留 >= newOpVersion 的事件
                                         needAddNewEvent = false;
                                     }
                                     if (needAddNewEvent) {
+                                        /** LastChangeEvent 事件版本号更新为 newOpVersion */
                                         boolean needRemoveLastChangeEvent = false;
                                         if (queueSize > 1 && !lastEventOpVerHigherNewOpVer) {
                                             needRemoveLastChangeEvent = true;
@@ -199,6 +227,7 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                                              */
                                             dataIdContext.changeEventQueue.removeLast();
                                         }
+                                        // 注册record.opVersion事件
                                         dataIdContext.changeEventQueue
                                             .offerLast(new OpVersionChangeEvent(dataId, newOpVersion, gmtModified));
                                     }
@@ -215,6 +244,9 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     * 每 1s 扫描本地内存 dataIdContextMap 分发事件处理，调用 listenerTaskExecutor 工作线程池处理 每个 DataIdContext 的事件;
+     */
     protected static class Notifier implements Runnable {
 
         MetaDbConfigManager manager;
@@ -240,6 +272,7 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                             continue;
                         }
                         if (dataIdInfo.listenerTaskFuture == null) {
+                            // listenerTaskExecutor 工作线程池处理 每个 DataIdContext 的事件;
                             Future taskFuture =
                                 manager.listenerTaskExecutor
                                     .submit(new ListenerTask(dataIdInfo, manager.completeListenTaskQueue));
@@ -247,10 +280,12 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                         }
                     }
 
+                    // 处理所有工作线程执行的结果
                     BlockingQueue<DataIdContext> queue = manager.completeListenTaskQueue;
                     while (!queue.isEmpty()) {
                         DataIdContext dataIdInfo = queue.take();
                         if (!dataIdInfo.isRemoved && !dataIdInfo.changeEventQueue.isEmpty()) {
+                            // 继续处理 DataIdContext.changeEventQueue 中剩下的事件;
                             Future taskFuture =
                                 manager.listenerTaskExecutor
                                     .submit(new ListenerTask(dataIdInfo, manager.completeListenTaskQueue));
@@ -270,6 +305,10 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     * 处理 dataIdContext.changeEventQueue 中头部的 OpVersionChangeEvent, 调用 dataIdListener.onHandleConfig;
+     * completeListenTaskQueue 共享队列 保存返回值;
+     */
     protected static class ListenerTask implements Callable<Boolean> {
         DataIdContext dataIdContext;
         protected BlockingQueue completeListenTaskQueue;
@@ -285,6 +324,7 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
             long opVersionToBeRefresh = opVersionChangeEvent.opVersion;
             String dataId = dataIdContext.dataId;
             try {
+                // 处理事件 dataIdListener.onHandleConfig;
                 boolean result = handleListenerAndRefreshOpVersion(dataId, opVersionToBeRefresh, false);
                 if (result) {
                     // clear op event
@@ -306,6 +346,10 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
     protected MetaDbConfigManager() {
     }
 
+    /**
+     * 多线程访问单例模式;
+     * @return
+     */
     public static MetaDbConfigManager getInstance() {
         if (!instance.isInited()) {
             synchronized (instance) {
@@ -326,14 +370,23 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         MetaDbCleanManager.getInstance();
     }
 
+    /**
+     * 业务线程绑定 (dataId, metadb.opVersion, ConfigListener)事件订阅 到内存态 dataIdContextMap;
+     * 注意是使用 metadb 内 dataId相关的opVersion 注册 listener;
+     *
+     * @param dataId a dataId that the caller defines
+     * @param listener a config listener that the caller uses to handle its own config data,
+     */
     @Override
     public void bindListener(String dataId, ConfigListener listener) {
 
         ConfigListenerRecord record = null;
         try (Connection conn = MetaDbDataSource.getInstance().getConnection()) {
+            // 单条语句就直接设置自动提交
             conn.setAutoCommit(true);
             ConfigListenerAccessor configListenerAccessor = new ConfigListenerAccessor();
             configListenerAccessor.setConnection(conn);
+            /** 注意使用的是 metadb opVersion */
             record = configListenerAccessor.getDataId(dataId, false);
         } catch (Throwable ex) {
             throw GeneralUtil.nestedException(ex);
@@ -344,6 +397,12 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     * 注册 (dataId, opVersion, ConfigListener) 到内存态 dataIdContextMap;
+     * @param dataId a dataId that the caller defines
+     * @param opVersion the verison
+     * @param listener dataId 的事件处理方法;
+     */
     @Override
     public void bindListener(String dataId, long opVersion, ConfigListener listener) {
         // enable listener and subscribe the change of the dataId
@@ -372,6 +431,11 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     * 注册需要关注的新的 dataId 到 metadb config_listener，确保注册成功;
+     * @param dataId
+     * @param trxConn
+     */
     @Override
     public void register(String dataId, Connection trxConn) {
         // add dataId into MetaDB
@@ -384,11 +448,23 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         disableListenerByDataId(dataId);
     }
 
+    /**
+     * 在 metadb.config_listener 中删除 dataId;
+     * @param dataId polardbx.meta.table.test.tb2
+     * @param trxConn
+     */
     @Override
     public void unregister(String dataId, Connection trxConn) {
         removeDataId(dataId, trxConn);
     }
 
+    /**
+     * 通过事务 自增metadb的 config_listener 中 opVersion，后续其他节点可异步scan到;
+     *
+     * @param dataId polardbx.meta.tables.test
+     * @param conn
+     * @return
+     */
     @Override
     public long notify(String dataId, Connection conn) {
 
@@ -430,12 +506,24 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     * 通过 GmsSyncManagerHelper 进行多节点sync广播;
+     * 通知从 metadb 中获取 opVersion 相应的事件进行处理;
+     *
+     * @param dataId
+     */
     @Override
     public void sync(String dataId) {
         doConfigListenerBySync(dataId, SystemDbHelper.DEFAULT_DB_NAME);
         return;
     }
 
+    /**
+     * 通过事务 注册新的 (dataId, DATA_ID_STATUS_NORMAL, DEFAULT_OP_VERSION) 初始事件到 config_listener 表， 如果存在则返回信息;
+     * @param dataId
+     * @param metaDbConn
+     * @return 如果存在则直接返回，不存在则不断尝试直至加入成功
+     */
     protected ConfigListenerRecord addDataIdInfoIntoDb(String dataId, Connection metaDbConn) {
         try {
             ConfigListenerRecord dataIdInfo = null;
@@ -444,12 +532,13 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                     ConfigListenerAccessor configListenerAccessor = new ConfigListenerAccessor();
                     configListenerAccessor.setConnection(conn);
                     try {
+                        // 注意是手动事务
                         conn.setAutoCommit(false);
 
                         // add dataId into metaDB
                         while (true) {
                             try {
-
+                                // select for update config_listener 表上锁;
                                 dataIdInfo = configListenerAccessor.getDataId(dataId, true);
                                 if (dataIdInfo != null
                                     && dataIdInfo.status == ConfigListenerRecord.DATA_ID_STATUS_NORMAL) {
@@ -457,12 +546,14 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                                     break;
                                 }
 
+                                // 初始化 (dataId, DATA_ID_STATUS_NORMAL, DEFAULT_OP_VERSION) 到 config_listener;
                                 configListenerAccessor
                                     .addDataId(dataId, ConfigListenerRecord.DATA_ID_STATUS_NORMAL,
                                         ConfigListenerAccessor.DEFAULT_OP_VERSION);
                                 break;
                             } catch (Exception e) {
                                 if (e.getMessage().toLowerCase().contains("deadlock found")) {
+                                    // 锁冲突则随机回退继续尝试加入
                                     Random rnd = new Random();
                                     int randWaitTime = Math.abs(rnd.nextInt(500) + 1);
                                     try {
@@ -532,6 +623,12 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     * 注册 (dataId, opVersion, ConfigListener) 到内存态 dataIdContextMap;
+     * @param dataId
+     * @param opVersion
+     * @param listener
+     */
     protected void enableListenerByDataId(String dataId, long opVersion, ConfigListener listener) {
         DataIdContext dataIdContext = dataIdContextMap.get(dataId);
         if (dataIdContext == null) {
@@ -539,6 +636,7 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
             dataIdContextMap.put(dataId, dataIdContext);
         } else {
             // use the last registered listener as the dataId listener
+            // 存在dataId 则修改 ConfigListener
             dataIdContext.dataIdListener = listener;
         }
     }
@@ -547,6 +645,9 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         dataIdContextMap.remove(dataId);
     }
 
+    /**
+     * 直接同步元数据，从 metadb 中获取 (dataId, opVersion) 相应的事件进行处理;
+     */
     public static class MetaDbConfigSyncAction implements IGmsSyncAction {
 
         private String dataId;
@@ -583,6 +684,11 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     * 通过 GmsSyncManagerHelper 进行多节点同步广播处理 MetaDbConfigSyncAction;
+     * @param dataId
+     * @param schemaName
+     */
     protected void doConfigListenerBySync(String dataId, String schemaName) {
         DataIdContext dataIdContext = dataIdContextMap.get(dataId);
         if (dataIdContext != null) {
@@ -590,11 +696,22 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         }
     }
 
+    /**
+     *
+     * 处理dataIdContextMap 中单个事件 dataIdListener.onHandleConfig(dataIdContext.dataId, opVersionToBeRefresh);
+     * 更新内存中 dataIdContext.currOpVersion 标志本节点已处理;
+     *
+     * @param dataId 需要在 dataIdContextMap 存在
+     * @param opVersionToBeRefresh 事件的版本号; dataIdContext.currOpVersion < opVersionToBeRefresh 才会被处理
+     * @param isSync 是否是 sync 还是 notify 方法调用
+     * @return 一般都是true
+     */
     protected static boolean handleListenerAndRefreshOpVersion(String dataId, long opVersionToBeRefresh,
                                                                boolean isSync) {
 
         DataIdContext dataIdContext = MetaDbConfigManager.getInstance().dataIdContextMap.get(dataId);
         if (dataIdContext == null) {
+            // ignore
             logDynamicConfig(dataId, null, 0L, opVersionToBeRefresh, isSync, true, false, true, 0);
             return true;
         }
@@ -605,12 +722,14 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         long st = 0;
         long et = 0;
 
+        // 保护 listenerTaskExecutor 多线程 处理同一个dataId的事件 onHandleConfig
         dataIdContext.handlingLock.lock();
         try {
             // Check opVersion
             currOpVersion = dataIdContext.currOpVersion;
             if (currOpVersion >= opVersionToBeRefresh) {
                 // Ignore to update version
+                // dataIdContext.currOpVersion >= opVersionToBeRefresh 的被处理过，忽略;
                 logDynamicConfig(dataId, listener, currOpVersion, opVersionToBeRefresh, isSync, true, true, true, 0);
                 return true;
             }
@@ -622,9 +741,14 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
                 return true;
             }
             st = System.nanoTime();
+            /**
+             * 核心触发 listener.onHandleConfig；
+             * 新加table 会调用 TableListListener, 订阅新的table 到 CONFIG_MANAGER;
+             **/
             listener.onHandleConfig(dataIdContext.dataId, opVersionToBeRefresh);
 
             // Update op version to latest version
+            /** 标志已通知 **/
             dataIdContext.currOpVersion = opVersionToBeRefresh;
 
             et = System.nanoTime();
@@ -664,6 +788,13 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
         MetaDbLogUtil.META_DB_DYNAMIC_CONFIG.info(logMsg);
     }
 
+    /**
+     * 本节点直接调用 onHandleConfig 处理单个 dataId 相关的事件;
+     * 注意不增加 currOpVersion， 也不检查 metadb 的 opVersion;
+     *
+     * @param dataId
+     * @return
+     */
     @Override
     public boolean localSync(String dataId) {
         DataIdContext dataIdContext = dataIdContextMap.get(dataId);
@@ -685,6 +816,7 @@ public class MetaDbConfigManager extends AbstractLifecycle implements ConfigMana
             }
 
             if (newOpVersion > currOpVersion) {
+                // currOpVersion 可能突然被多线程并发修改了
                 logLocalSyncConfig(dataId, listener, currOpVersion, newOpVersion, false, 0);
                 return false;
             }

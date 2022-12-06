@@ -255,6 +255,8 @@ public class ServerThreadPool extends AbstractExecutorService {
 
         try {
             if (executorBuckets != null) {
+                // 通过 BlockingQueue 同步可见性？锁会保证其可见性，也就是写回主存；
+                // java.util.concurrent.ThreadPoolExecutor@3d247b98[Running, pool size = 256, active threads = 0, queued tasks = 0, completed tasks = 33610]
                 executorBuckets[bucketIndex].execute(command);
             } else {
                 executor.execute(command);

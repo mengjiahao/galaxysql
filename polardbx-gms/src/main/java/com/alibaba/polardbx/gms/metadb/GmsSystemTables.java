@@ -19,6 +19,9 @@ package com.alibaba.polardbx.gms.metadb;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * 对应 galaxysql/polardbx-gms/src/main/resources/ddl 中的 SystemTable;
+ */
 public class GmsSystemTables {
 
     private static Set<String> systemTables = new HashSet<>();

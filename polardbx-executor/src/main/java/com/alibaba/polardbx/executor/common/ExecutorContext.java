@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ExecutorContext {
 
     private RepositoryHolder repositoryHolder = null;
+    /** 集群信息*/
     private TopologyHandler topologyHandler = null;
     private ITopologyExecutor topologyExecutor = null;
     private ITransactionManager transactionManager = null;

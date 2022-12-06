@@ -86,6 +86,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author agapple 2014年9月25日 下午4:40:25
  * @since 5.1.13
+ *
+ * CN 节点;
  */
 public class CobarServer extends AbstractLifecycle implements Lifecycle {
 
@@ -187,7 +189,7 @@ public class CobarServer extends AbstractLifecycle implements Lifecycle {
             // checkAvailableForAllPortsUsedByServer(system);
             scheduler.scheduleWithFixedDelay(updateTime(), 0L, 20, TimeUnit.MILLISECONDS);
 
-            // 保存相关的serverHost、serveerPort与managerPort
+            // 保存相关的serverHost、serverPort与managerPort
             this.serverHost = AddressUtils.getHostIp();
             this.serverPort = String.valueOf(system.getServerPort());
             this.managerPort = String.valueOf(system.getManagerPort());

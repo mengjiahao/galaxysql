@@ -114,6 +114,8 @@ import static com.alibaba.polardbx.executor.utils.failpoint.FailPointKey.FP_ROLL
  * *                             \----------> (ROLLBACK_PAUSED)
  * DdlTasks can check ddlContext.isInterrupted() to know whether they should terminate
  *
+ * 真正执行 DdlJob 中 DAG 的 DdlTask;
+ *
  * @author guxu
  */
 public class DdlEngineDagExecutor {
@@ -319,6 +321,9 @@ public class DdlEngineDagExecutor {
         updateDdlState(DdlState.QUEUED, DdlState.RUNNING);
     }
 
+    /**
+     * 执行 DAG DdlTask;
+     */
     private void onRunning() {
         LOGGER.info(String.format(
             "onRunning DDL [%s] JobId:[%s] Task graph:\n%s\n",
@@ -339,10 +344,12 @@ public class DdlEngineDagExecutor {
                     continue;
                 }
             }
+            // DAG DdlTask 是否执行完毕
             if (executingTaskScheduler.isAllTaskDone()) {
                 updateDdlState(DdlState.RUNNING, DdlState.COMPLETED);
                 return;
             }
+            // 并行批量执行 DdlTask
             if (executingTaskScheduler.hasMoreExecutable()) {
                 // fetch & execute next batch
                 submitDdlTask(executingTaskScheduler.pollBatch(), true, executingTaskScheduler);
@@ -520,7 +527,10 @@ public class DdlEngineDagExecutor {
 
     /**
      * execute/rollback tasks in parallel
-     * notice: max parallelism is determined by 'maxParallelism' field
+     * notice: max parallelism is determined by 'maxParallelism' field;
+     *
+     * 通过异步任务 在线程池 批量执行 DdlTask;
+     * taskList 中 task 可以并行执行;
      *
      * @param executeElseRollback true means execute, false means rollback
      */
@@ -780,6 +790,10 @@ public class DdlEngineDagExecutor {
         return false;
     }
 
+    /**
+     * 发送给 leader CN 节点 DDL 执行结果;
+     * @param response
+     */
     private void respond(Response response) {
         // Get local server key.
         String localServerKey = DdlHelper.getLocalServerKey();
@@ -792,8 +806,10 @@ public class DdlEngineDagExecutor {
             return;
         } else if (TStringUtil.equals(ddlContext.getResponseNode(), localServerKey)) {
             // Respond to current server, so no sync is needed.
+            /** leader就是本节点，直接回复 */
             DdlEngineRequester.addResponses(ddlResponse.getResponses());
         } else {
+            /** 通过 GmsSyncManagerHelper 同步结果 */
             try {
                 // Respond to the worker via sync.
                 DdlResponseSyncAction responseSyncAction =
@@ -864,6 +880,7 @@ public class DdlEngineDagExecutor {
 
     /**
      * compare-and-set DdlState
+     * 更改 metadb ddl_engine 表 DdlJob 状态;
      *
      * @return old state
      */

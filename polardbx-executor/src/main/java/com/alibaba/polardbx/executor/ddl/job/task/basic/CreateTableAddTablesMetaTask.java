@@ -31,6 +31,11 @@ import org.apache.calcite.sql.SqlKind;
 import java.sql.Connection;
 import java.util.Map;
 
+/**
+ *
+ * 单库单表:
+ * {"binaryColumnDefaultValues":{},"dbIndex":"TEST_SINGLE_GROUP","description":"","hasTimestampColumnDefault":false,"ifNotExists":false,"logicalTableName":"tb1","name":"CreateTableAddTablesMetaTask","partitioned":false,"phyTableName":"tb1_xjik","schemaName":"test","sequenceBean":{"innerStep":100000,"new":true,"type":"GROUP","unitCount":1,"unitIndex":0},"sqlKind":"CREATE_TABLE","tablesExtRecord":{"autoPartition":false,"broadcast":0,"dbMetaMap":"","dbNamePattern":"TEST_SINGLE_GROUP","dbPartitionCount":1,"dbPartitionKey":"","dbPartitionPolicy":"","dbRule":"","extPartitions":"","flag":0,"fullTableScan":0,"locked":false,"newTableName":"","status":0,"tableName":"tb1","tableSchema":"test","tableType":0,"tbMetaMap":"","tbNamePattern":"tb1_xjik","tbPartitionCount":1,"tbPartitionKey":"","tbPartitionPolicy":"","tbRule":"","version":1}};
+ */
 @Getter
 @TaskName(name = "CreateTableAddTablesMetaTask")
 public class CreateTableAddTablesMetaTask extends BaseGmsTask {
@@ -64,6 +69,12 @@ public class CreateTableAddTablesMetaTask extends BaseGmsTask {
         onExceptionTryRecoveryThenRollback();
     }
 
+    /**
+     * metadb中加入元数据信息;
+     *
+     * @param metaDbConnection
+     * @param executionContext
+     */
     @Override
     public void executeImpl(Connection metaDbConnection, ExecutionContext executionContext) {
         PhyInfoSchemaContext phyInfoSchemaContext = TableMetaChanger.buildPhyInfoSchemaContext(schemaName,

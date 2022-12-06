@@ -33,6 +33,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 通过 DdlEngineAccessor 从 metadb 获取 DdlJob 信息 以及 改变状态;
+ */
 public class DdlEngineSchedulerManager {
 
     protected DdlEngineResourceManager resourceManager = new DdlEngineResourceManager();
@@ -48,6 +51,12 @@ public class DdlEngineSchedulerManager {
         }.execute();
     }
 
+    /**
+     * 从 ddl_engine_task 系统表中获取 DdlTask 信息;
+     * @param jobId
+     * @param taskId
+     * @return
+     */
     public DdlEngineTaskRecord fetchTaskRecord(long jobId, long taskId) {
         return new DdlEngineAccessorDelegate<DdlEngineTaskRecord>() {
             @Override
@@ -221,7 +230,8 @@ public class DdlEngineSchedulerManager {
     }
 
     /**
-     * compare-and-set DdlState
+     * compare-and-set DdlState；
+     * 通过 engineAccessor 更改 metadb ddl_engine 表 DdlJob 状态;
      *
      * @return old state
      */

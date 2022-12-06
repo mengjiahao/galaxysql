@@ -84,6 +84,7 @@ public class PreemptiveMdlContextStamped extends MdlContextStamped {
         try {
             List<MdlTicket> blockerList = getWaitFor(request.getKey());
             for(MdlTicket blocker : blockerList){
+                /** 断开所有读锁？让先前的读失败？ */
                 if(blocker.getType()== MdlType.MDL_EXCLUSIVE){
                     return;
                 }

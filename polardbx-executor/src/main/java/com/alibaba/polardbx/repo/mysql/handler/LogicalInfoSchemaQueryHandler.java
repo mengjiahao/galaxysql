@@ -275,7 +275,14 @@ public abstract class LogicalInfoSchemaQueryHandler extends HandlerCommon {
         }
     }
 
-    // Collect table name Object[0] along with table type Object[1]
+    /**
+     * Collect table name Object[0] along with table type Object[1]
+     * 从当前 OptimizerContext.SchemaManager 获取 table的元数据信息;
+     *
+     * @param showNode
+     * @param infoSchemaContext
+     * @return
+     */
     protected List<Object[]> showFullTables(LogicalShow showNode, LogicalInfoSchemaContext infoSchemaContext) {
         ExecutionContext executionContext = infoSchemaContext.getExecutionContext();
 
@@ -343,7 +350,7 @@ public abstract class LogicalInfoSchemaQueryHandler extends HandlerCommon {
         Map<String, Boolean> tablesAutoPartInfo = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         String targetDb = showNode.getSchemaName();
         if (!DbInfoManager.getInstance().isNewPartitionDb(targetDb)) {
-
+            // 执行这里
             // Merge with logical tables from current rule.
             tableNames = infoSchemaContext.getOptimizerContext().getRuleManager().mergeTableRule(defaultDbTables);
 

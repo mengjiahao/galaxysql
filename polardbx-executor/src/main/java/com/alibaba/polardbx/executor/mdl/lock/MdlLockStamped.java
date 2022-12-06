@@ -25,6 +25,7 @@ import com.alibaba.polardbx.executor.mpp.metadata.NotNull;
 import java.util.concurrent.locks.StampedLock;
 
 /**
+ * 包装 stamp 与 StampedLock;
  * @author chenmo.cm
  */
 public class MdlLockStamped extends MdlLock {
@@ -41,6 +42,10 @@ public class MdlLockStamped extends MdlLock {
         return stampedLock.writeLock();
     }
 
+    /**
+     * 上 readLockInterruptibly；
+     * @return
+     */
     @Override
     public long readLock() {
         try {

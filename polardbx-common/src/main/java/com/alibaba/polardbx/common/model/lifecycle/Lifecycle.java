@@ -16,7 +16,9 @@
 
 package com.alibaba.polardbx.common.model.lifecycle;
 
-
+/**
+ * 生命周期接口，类似于构造函数与析构函数;
+ */
 public interface Lifecycle {
 
     void init();

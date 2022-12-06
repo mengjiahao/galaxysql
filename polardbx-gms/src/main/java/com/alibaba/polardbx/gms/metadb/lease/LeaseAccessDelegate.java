@@ -21,6 +21,10 @@ import com.alibaba.polardbx.gms.metadb.misc.ReadWriteLockAccessor;
 
 import java.sql.Connection;
 
+/**
+ * 包装 JDBC 操作 metadb系统表 lease;
+ * @param <T>
+ */
 public abstract class LeaseAccessDelegate<T> extends MetaDbAccessorWrapper<T> {
 
     protected final LeaseAccessor accessor;

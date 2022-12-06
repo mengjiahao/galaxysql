@@ -70,6 +70,10 @@ import static com.alibaba.polardbx.rule.VirtualTableRoot.testTableRuleMap;
  * 5. id in (1,2,3,4) : long
  * </pre>
  *
+ *
+ * 维护所有 database/group/table/partition 表;
+ *
+ *
  * @author jianghang 2013-11-5 下午8:11:43
  * @since 5.0.0
  */
@@ -324,7 +328,8 @@ public class TddlRule extends TddlRuleGmsConfig implements TddlTableRule {
     }
 
     /**
-     * 获取所有的规则表
+     * 获取所有的规则表;
+     * 注意只返回 用户表，不返回系统表;
      */
     public Collection<TableRule> getTables() {
         List<TableRule> result = new ArrayList<TableRule>();
@@ -344,6 +349,11 @@ public class TddlRule extends TddlRuleGmsConfig implements TddlTableRule {
         return result;
     }
 
+    /**
+     * 获取 vtr 的复制信息；
+     *
+     * @return
+     */
     public Map<String, String> getDbIndexMap() {
         Map<String, String> result = TreeMaps.caseInsensitiveMap();
         VirtualTableRoot vrt = super.getCurrentRule();

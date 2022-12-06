@@ -30,6 +30,11 @@ import lombok.Getter;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 直接在 CN 间进行 TableMetaChangeSyncAction 同步；
+ *
+ * 不会 rollback;
+ */
 @Getter
 @TaskName(name = "TableSyncTask")
 public class TableSyncTask extends BaseSyncTask {
@@ -69,6 +74,7 @@ public class TableSyncTask extends BaseSyncTask {
         boolean throwExceptions = !isFromCDC();
         try {
             if (!preemptive) {
+                // DDL 走这里
                 SyncManagerHelper.sync(new TableMetaChangeSyncAction(schemaName, tableName), throwExceptions);
             } else {
                 SyncManagerHelper.sync(

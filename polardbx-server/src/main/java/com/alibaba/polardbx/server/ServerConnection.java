@@ -192,6 +192,8 @@ import static com.alibaba.polardbx.executor.gsi.GsiUtils.vendorErrorIs;
 
 /**
  * @author xianmao.hexm 2011-4-21 上午11:22:57
+ *
+ * user=polardbx_root,host=127.0.0.1,port=53932,schema=test
  */
 public final class ServerConnection extends FrontendConnection implements Reschedulable {
 
@@ -815,10 +817,22 @@ public final class ServerConnection extends FrontendConnection implements Resche
         execute(sql, false, true, params, statementId, flags, preparedStmtCache, null);
     }
 
+    /**
+     * DDL 会走到这里
+     * @param sql
+     * @param hasMore
+     * @param prepare
+     * @param params
+     * @param statementId
+     * @param flags
+     * @param preparedStmtCache
+     * @param handler
+     */
     public void execute(ByteString sql, boolean hasMore, boolean prepare,
                         final List<Pair<Integer, ParameterContext>> params, int statementId, byte flags,
                         PreparedStmtCache preparedStmtCache, QueryResultHandler handler) {
 
+        // sqlSimpleMaxLen=16000
         int sqlSimpleMaxLen = CobarServer.getInstance().getConfig().getSystem().getSqlSimpleMaxLen();
         sqlSample = sql.substring(0, Math.min(sqlSimpleMaxLen, sql.length()));
 
@@ -932,6 +946,10 @@ public final class ServerConnection extends FrontendConnection implements Resche
         }
     }
 
+    /**
+     * 每个 SQL 语句生成一个唯一的 traceId;
+     * traceId 最终会出现在各种日志文件和实际下发的物理 SQL 的 HINT 中（从 DN 的 binlog 中可以获取到），用来排查问题十分方便
+     */
     public void genTraceId() {
 
         IdGenerator traceIdGen = TrxIdGenerator.getInstance().getIdGenerator();
@@ -957,6 +975,8 @@ public final class ServerConnection extends FrontendConnection implements Resche
     }
 
     /**
+     * 执行 DML/DDL;
+     *
      * 简单做同步，避免erlang/nodejs等异步驱动的模式，提交多个sql后，等返回结果，容易串包，加同步，保证串行处理
      * 在重新调度(reschedule)的时候也有用到
      */
@@ -966,11 +986,13 @@ public final class ServerConnection extends FrontendConnection implements Resche
         ByteString realSql = dataContext != null ? ByteString.from(dataContext.getLoadDataSql()) : sql;
         long statExecCpuNano = 0;
         if (MetricLevel.isSQLMetricEnabled(RuntimeStat.getMetricLevel())) {
+            // 一般执行这里
             statExecCpuNano = ThreadCpuStatUtil.getThreadCpuTimeNano();
         }
 
         // 针对非事务的请求进行链接中断
         if (!CobarServer.getInstance().isOnline() && isAutocommit()) {
+            // 一般不执行这里
             shutDownError.write(PacketOutputProxyFactory.getInstance().createProxy(this));
             return;
         }
@@ -979,6 +1001,7 @@ public final class ServerConnection extends FrontendConnection implements Resche
             return;
         }
 
+        // schema.name = test
         SchemaConfig schema = getSchemaConfig();
         if (schema == null) {
             writeErrMessage(ErrorCode.ER_BAD_DB_ERROR, "Unknown database '" + this.schema + "'");
@@ -1023,6 +1046,7 @@ public final class ServerConnection extends FrontendConnection implements Resche
             CobarServer.getInstance().getServerExecutor().initTraceStats(traceId);
             prepareExecutionContext(conn.getExecutionContext());
             if (!DynamicConfig.getInstance().enableExtremePerformance()) {
+                // 一般执行到这里
                 conn.getExecutionContext().setTestMode(EagleeyeTestHintParser.parseHint(sql));
             } else {
                 conn.getExecutionContext().setTestMode(false);

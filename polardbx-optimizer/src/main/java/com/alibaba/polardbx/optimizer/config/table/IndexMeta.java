@@ -76,8 +76,9 @@ public class IndexMeta implements Serializable, Cloneable {
     // ================== 冗余字段 ==============
 
     /**
-     * 表名+index名的方式进行命名的。 在查询时，会先根据.之前的，拿到表名，然后找到对应的schema。
-     * 然后再根据.之后的，找到对应的schema
+     * 表名+index名的方式进行命名的。 在查询时，会先根据'.'之前的，拿到表名，然后找到对应的schema。
+     * 然后再根据'.'之后的，找到对应的schema；
+     * 表名相当于父指针；
      */
     private final String tableName;
 

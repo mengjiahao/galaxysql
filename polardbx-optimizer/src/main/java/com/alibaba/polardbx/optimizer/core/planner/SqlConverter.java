@@ -114,6 +114,7 @@ public class SqlConverter {
             .withInSubQueryThreshold(Integer.MAX_VALUE)
             .withExpand(false)
             .build();
+        // 这是 CalciteCatalogReader
         this.catalog = RelUtils.buildCatalogReader(schemaName, ec);
 
         this.opTab = TddlOperatorTable.instance();
@@ -176,6 +177,13 @@ public class SqlConverter {
         return toRel(validatedNode, new PlannerContext(new ExecutionContext().setSchemaManagers(smMap)));
     }
 
+    /**
+     * SqlCreateTable -> ;
+     *
+     * @param validatedNode
+     * @param plannerContext
+     * @return
+     */
     public RelNode toRel(final SqlNode validatedNode, final PlannerContext plannerContext) {
         final RelOptCluster cluster = createRelOptCluster(plannerContext);
         return toRel(validatedNode, cluster);

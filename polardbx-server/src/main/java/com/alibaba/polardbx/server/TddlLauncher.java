@@ -125,6 +125,7 @@ public final class TddlLauncher {
             logger.info("## start the tddl server.");
             final CobarServer server = CobarServer.getInstance();
             ModuleWarmUp.warmUp();
+            // CN启动
             server.init();
             EventLogger.log(EventType.ONLINE, "CN is online");
             logger.info("## the tddl server is running now ......");

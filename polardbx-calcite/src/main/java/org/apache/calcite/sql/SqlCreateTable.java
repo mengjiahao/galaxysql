@@ -110,6 +110,8 @@ import static com.alibaba.polardbx.common.TddlConstants.UGSI_PK_INDEX_NAME;
 
 /**
  * Parse tree for {@code CREATE TABLE} statement.
+ *
+ * SQL Ast 解析树;
  */
 public class SqlCreateTable extends SqlCreate {
 

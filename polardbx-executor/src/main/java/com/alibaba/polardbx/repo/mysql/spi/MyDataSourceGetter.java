@@ -25,6 +25,9 @@ import com.alibaba.polardbx.group.jdbc.TGroupDataSource;
 
 import javax.sql.DataSource;
 
+/**
+ * 从 ExecutorContext.TopologyHandler 获取 DN 节点信息;
+ */
 public class MyDataSourceGetter implements IDataSourceGetter {
 
     private final String schemaName;
@@ -37,6 +40,12 @@ public class MyDataSourceGetter implements IDataSourceGetter {
         return new MyDataSourceGetter(schemaName).getDataSource(groupName);
     }
 
+    /**
+     * 通过 TopologyHandler 获取 DN 节点;
+     * @param schemaName
+     * @param group
+     * @return
+     */
     @Override
     public TGroupDataSource getDataSource(String schemaName, String group) {
         ExecutorContext executorContext = ExecutorContext.getContext(schemaName);
@@ -65,6 +74,8 @@ public class MyDataSourceGetter implements IDataSourceGetter {
          * group) 创建的，type都是mysql.
          * 但实际上这里的type需要根据实际的DataSource来决定是个oracle还是个mysql.
          * 如果是oracle那么type需要改成oracle..
+         *
+         * TddlGroupExecutor
          */
         Group.GroupType type = matrixExecutor.getGroupInfo().getType();
         DataSource ds = matrixExecutor.getDataSource();

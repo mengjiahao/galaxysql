@@ -24,6 +24,11 @@ import com.alibaba.polardbx.gms.util.MetaDbUtil;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+/**
+ * 包装连接open&close，子类实现 invoke() 进行sql调用；
+ *
+ * @param <T>
+ */
 public abstract class MetaDbAccessorWrapper<T> {
 
     /**

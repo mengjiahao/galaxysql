@@ -44,11 +44,19 @@ public class CreateTableShowTableMetaTask extends BaseGmsTask {
         onExceptionTryRecoveryThenPause();
     }
 
+    /**
+     * 更新元数据状态信息为 public，通知元数据在CN之间同步（异步更新机制）；
+     * 清空 CN 的 PlanCache；
+     *
+     * @param metaDbConnection
+     * @param executionContext
+     */
     @Override
     public void executeImpl(Connection metaDbConnection, ExecutionContext executionContext) {
         TableInfoManager tableInfoManager = new TableInfoManager();
         tableInfoManager.setConnection(metaDbConnection);
 
+        // AUTO_SEQ_tb1
         SequenceBaseRecord sequenceRecord =
             tableInfoManager.fetchSequence(schemaName, AUTO_SEQ_PREFIX + logicalTableName);
 
@@ -62,6 +70,7 @@ public class CreateTableShowTableMetaTask extends BaseGmsTask {
 
     @Override
     protected void onExecutionSuccess(ExecutionContext executionContext) {
+        // 通知 CONFIG_MANAGER 元数据已经更新, MetaDbConfigSyncAction;
         TableMetaChanger.afterNewTableMeta(schemaName, logicalTableName);
     }
 

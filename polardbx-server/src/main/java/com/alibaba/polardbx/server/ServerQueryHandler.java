@@ -73,6 +73,13 @@ public class ServerQueryHandler implements QueryHandler {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * 执行 query 入口;
+     * @param data
+     * @param offset
+     * @param length
+     * @param charset
+     */
     @Override
     public void queryRaw(byte[] data, int offset, int length, Charset charset) {
 
@@ -85,6 +92,7 @@ public class ServerQueryHandler implements QueryHandler {
         // you cannot use double quotation marks to quote literal strings,
         // because it is interpreted as an identifier.
         if (source.isEnableANSIQuotes()) {
+            // 一般不进入
             try {
                 MySQLANSIQuoteTransformer ansiQuoteTransformer = new MySQLANSIQuoteTransformer(sql);
                 sql = ansiQuoteTransformer.getTransformerdSql();
@@ -93,12 +101,14 @@ public class ServerQueryHandler implements QueryHandler {
             }
         }
 
+        // ServerConnection [host=127.0.0.1,port=56313,schema=test]
         ServerConnection c = this.source;
 
         if (ConfigDataMode.isFastMock() && ExecutorContext.getContext(source.getSchema()) == null) {
             c.switchDb(source.getSchema());
         }
         if (CobarServer.getInstance().getConfig().isLock()) {
+            // 单机调试不进入
             PacketUtil.getLock().write(PacketOutputProxyFactory.getInstance().createProxy(c));
             return;
         }
@@ -119,6 +129,7 @@ public class ServerQueryHandler implements QueryHandler {
     }
 
     private void executeStatement(ServerConnection c, ByteString sql, boolean hasMore) {
+        // traceId: 154b0ba45e800000
         c.genTraceId();
 
         boolean recordSql = true;
@@ -240,6 +251,7 @@ public class ServerQueryHandler implements QueryHandler {
                 recordSql = true;
                 break;
             default:
+                // DDL 直接走这里
                 c.execute(sql, hasMore);
                 recordSql = false;
             }

@@ -150,6 +150,13 @@ public class PostPlanner {
         plannerContext.setSkipPostOpt(planVisitor.isSkipPostPlan());
     }
 
+    /**
+     * 执行计划 优化；
+     *
+     * @param executionPlan
+     * @param executionContext
+     * @return
+     */
     public ExecutionPlan optimize(ExecutionPlan executionPlan, ExecutionContext executionContext) {
         boolean enableTaskCpuProfileStat =
             MetricLevel.isSQLMetricEnabled(executionContext.getParamManager().getInt(
@@ -226,6 +233,9 @@ public class PostPlanner {
 
             List<String> schemaNamesOfPlan = new ArrayList<String>();
 
+            /**
+             * 获取 元数据信息;
+             */
             Map<String, List<List<String>>> targetTables = getTargetTablesAndSchemas(logTableNames,
                 executionPlan,
                 executionContext,
@@ -618,6 +628,7 @@ public class PostPlanner {
                     calcParams.put(CalcParamsAttribute.COM_DB_TB, allFullComps);
                     calcParams.put(CalcParamsAttribute.CONN_TIME_ZONE, executionContext.getTimeZone());
                     calcParams.put(CalcParamsAttribute.EXECUTION_CONTEXT, executionContext);
+                    /** 注意这里有分表信息 */
                     List<TargetDB> tdbs =
                         tddlRuleManager
                             .shard(name, true, forceAllowFullTableScan, comps, params, calcParams, executionContext);

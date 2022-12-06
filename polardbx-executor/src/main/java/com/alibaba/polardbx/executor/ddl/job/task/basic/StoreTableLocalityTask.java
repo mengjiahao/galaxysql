@@ -43,6 +43,7 @@ import java.util.List;
 
 /**
  * Store locality of table into metadb
+ * 自增 metadb.table 的 version；
  *
  * @author moyi
  * @since 2021/07

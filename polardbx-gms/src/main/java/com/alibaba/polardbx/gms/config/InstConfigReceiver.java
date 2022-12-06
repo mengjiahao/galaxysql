@@ -20,6 +20,7 @@ import java.util.Properties;
 
 /**
  * @author chenghui.lch
+ * 应用配置属性;
  */
 public interface InstConfigReceiver {
     void apply(Properties props);

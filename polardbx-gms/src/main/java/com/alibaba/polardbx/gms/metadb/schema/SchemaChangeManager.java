@@ -31,6 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Leader节点对 系统表进行 创建与更新;
+ * 通过 schemaChangeAccessor 在metadb上执行DDL, 并更新 schema_change表;
+ */
 public class SchemaChangeManager extends AbstractLifecycle {
 
     private static final Logger LOGGER = LoggerInit.TDDL_DYNAMIC_CONFIG;
@@ -41,6 +45,7 @@ public class SchemaChangeManager extends AbstractLifecycle {
 
     private static final SchemaChangeManager INSTANCE = new SchemaChangeManager();
 
+    /** 获取系统表(tableName, version)*/
     private final Map<String, Integer> TABLE_SCHEMA_CHANGES = new ConcurrentHashMap<>();
 
     private SchemaChangeAccessor schemaChangeAccessor;
@@ -71,6 +76,8 @@ public class SchemaChangeManager extends AbstractLifecycle {
 
             boolean schemaChangeRequired = doSchemaChange(false);
 
+            // 检测系统表版本，对老版本系统表进行更新(应该是系统升级使用);
+            // 注意metadb 上锁 __polardbx_schema_change_lock__ ;
             while (!locked && schemaChangeRequired) {
                 locked = schemaChangeAccessor.getLock();
                 if (!locked) {
@@ -122,6 +129,9 @@ public class SchemaChangeManager extends AbstractLifecycle {
         return schemaChangeRequired;
     }
 
+    /**
+     * 执行 DDL 创建系统表，并更新 schema_change表;
+     */
     private Pair<Boolean, Long> register(String systemTableName, String fullCreateTableStmt,
                                          List<String> schemaChangeStmtsInOrder, boolean lockGot) {
         long startTime = System.currentTimeMillis();
@@ -219,6 +229,9 @@ public class SchemaChangeManager extends AbstractLifecycle {
         return true;
     }
 
+    /**
+     * 获取当前系统表(tableName, version);
+     */
     private void loadCurrentVersions() {
         // Load all tables' current versions.
         List<SchemaChangeRecord> records = schemaChangeAccessor.query();

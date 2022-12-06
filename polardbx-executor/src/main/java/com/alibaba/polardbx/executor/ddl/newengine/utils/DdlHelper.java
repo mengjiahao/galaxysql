@@ -183,6 +183,10 @@ public class DdlHelper {
         return StringUtils.startsWith(key, DdlEngineRecord.SubJobPrefix);
     }
 
+    /**
+     * 通过 GmsNodeManager 获取本地 CN节点信息;
+     * @return 返回是 ip:serverPort
+     */
     public static String getLocalServerKey() {
         GmsNodeManager.GmsNode localNode = GmsNodeManager.getInstance().getLocalNode();
         if (localNode != null) {

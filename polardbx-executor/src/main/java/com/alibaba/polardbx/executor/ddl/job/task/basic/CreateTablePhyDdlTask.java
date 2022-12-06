@@ -46,6 +46,9 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.List;
 
+/**
+ * 每个 DdlTask 是幂等的，有 execute 的物理执行计划，也有 rollback 的物理执行计划；
+ */
 @Getter
 @TaskName(name = "CreateTablePhyDdlTask")
 public class CreateTablePhyDdlTask extends BasePhyDdlTask {
@@ -59,6 +62,11 @@ public class CreateTablePhyDdlTask extends BasePhyDdlTask {
         onExceptionTryRecoveryThenRollback();
     }
 
+    /**
+     * CreateTablePhyDdlTask 的 rollback 是 dropPhyTable;
+     * @param executionContext
+     * @return
+     */
     @Override
     protected List<RelNode> genRollbackPhysicalPlans(ExecutionContext executionContext) {
         DdlPhyPlanBuilder

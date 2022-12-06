@@ -79,6 +79,7 @@ import java.util.NavigableSet;
  * functions defined schemas.
  */
 public class CalciteCatalogReader implements Prepare.CatalogReader {
+  /** TddlCalciteSchema */
   protected final CalciteSchema rootSchema;
   protected final RelDataTypeFactory typeFactory;
   private final List<List<String>> schemaPaths;

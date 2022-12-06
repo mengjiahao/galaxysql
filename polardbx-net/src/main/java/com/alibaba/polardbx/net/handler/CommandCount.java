@@ -44,6 +44,9 @@ public class CommandCount {
         return initDB;
     }
 
+    /**
+     * 统计 请求数;
+     */
     public void doQuery() {
         ++query;
     }

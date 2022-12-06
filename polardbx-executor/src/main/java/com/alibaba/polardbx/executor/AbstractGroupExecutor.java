@@ -32,10 +32,14 @@ import org.apache.calcite.rel.RelNode;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Future;
 
+/**
+ * 调用 CN->DN 执行操作;
+ */
 public abstract class AbstractGroupExecutor extends AbstractLifecycle implements IGroupExecutor {
 
     private final IRepository repo;
     private static final Logger logger = LoggerFactory.getLogger(AbstractGroupExecutor.class);
+    /** Group[name=TEST_SINGLE_GROUP,appName=test@polardbx-polardbx,schemaName=test,type=MYSQL_JDBC,atoms=[],properties={},unitName=<null>,enforceMaster=false] */
     private Group group;
 
     public AbstractGroupExecutor(IRepository repo) {
@@ -67,7 +71,19 @@ public abstract class AbstractGroupExecutor extends AbstractLifecycle implements
             completionQueue);
     }
 
+    /**
+     * 不同阶段 planHandler 不一样, 根据 relNode 是逻辑执行计划 还是 物理执行计划 调用不同 handler，看是操作 CN 还是 DN：
+     * DDL: CN 定义 DdlJob，或者 执行DdlJob时 CN 调用 DN 执行物理执行计划;
+     *
+     * create table: LogicalCreateTable -> MySingleTableScanHandler;
+     * drop table: LogicalDropTable -> MySingleTableScanHandler;
+     *
+     * @param relNode LogicalCreateTable/PhyDdlTableOperation
+     * @param executionContext
+     * @return
+     */
     private Cursor executeInner(RelNode relNode, ExecutionContext executionContext) {
+        // CommandHandlerFactoryMyImp
         ICommandHandlerFactory commandExecutorFactory = this.repo.getCommandExecutorFactory();
         // 根据当前executor,拿到对应的处理Handler
         PlanHandler planHandler = commandExecutorFactory.getCommandHandler(relNode, executionContext);

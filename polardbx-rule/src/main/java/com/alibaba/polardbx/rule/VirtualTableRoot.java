@@ -31,7 +31,7 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 /**
- * 一组{@linkplain TableRule}的集合
+ * 一组{@linkplain TableRule}的集合；
  *
  * @author junyu
  */
@@ -39,6 +39,7 @@ public class VirtualTableRoot extends AbstractLifecycle implements Lifecycle {
 
     private static final Logger logger = LoggerFactory.getLogger(VirtualTableRoot.class);
     protected String dbType = "MYSQL";
+    /** 注意这是 synchronizeMap */
     protected Map<String, TableRule> virtualTableMap = TreeMaps.synchronizeMap();
     protected static Map<String, TableRule> testTableRuleMap = new TreeMap(String.CASE_INSENSITIVE_ORDER);
     protected Map<String, String> dbIndexMap = new TreeMap(String.CASE_INSENSITIVE_ORDER);

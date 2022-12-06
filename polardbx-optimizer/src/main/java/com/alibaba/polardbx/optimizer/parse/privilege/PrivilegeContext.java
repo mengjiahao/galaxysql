@@ -32,7 +32,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 权限上下文
+ * 权限上下文;
+ *
+ * user=polardbx_root;
+ * PolarAccount{accountId=1username='polardbx_root', host='%', password='xxx', accountType=GOD};
+ *
+ *
  *
  * @author arnkore 2017-01-17 16:06
  */

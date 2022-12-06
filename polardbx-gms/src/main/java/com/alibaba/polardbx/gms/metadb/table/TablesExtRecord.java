@@ -26,6 +26,9 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 有 table 的 分库分表 路由信息，无列信息；
+ */
 public class TablesExtRecord implements SystemTableRecord {
 
     public static final long FLAG_LOCK = 0x1;

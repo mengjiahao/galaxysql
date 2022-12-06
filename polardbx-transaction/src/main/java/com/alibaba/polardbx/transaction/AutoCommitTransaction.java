@@ -32,6 +32,9 @@ import com.alibaba.polardbx.optimizer.utils.IConnectionHolder;
 import java.sql.SQLException;
 
 /**
+ *
+ * 单条 DDL 是 auto-commit;
+ *
  * @author mengshi.sunmengshi 2013-12-6 上午11:31:29
  * @since 5.0.0
  */
@@ -56,6 +59,15 @@ public class AutoCommitTransaction extends BaseTransaction {
         return getSelfConnection(schemaName, groupName, ds, masterSlave);
     }
 
+    /**
+     *  获取 DN 连接;
+     * @param schemaName
+     * @param groupName
+     * @param ds
+     * @param masterSlave
+     * @return
+     * @throws SQLException
+     */
     protected IConnection getSelfConnection(
         String schemaName, String groupName, IDataSource ds, MasterSlave masterSlave)
         throws SQLException {

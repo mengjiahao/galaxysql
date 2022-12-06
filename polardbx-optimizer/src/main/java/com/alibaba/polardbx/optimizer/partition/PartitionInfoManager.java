@@ -55,7 +55,9 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
 
 /**
- * Handle and manage all the changes for all partition information
+ * Handle and manage all the changes for all partition information;
+ *
+ * Partition table 信息;
  *
  * @author chenghui.lch
  */
@@ -78,6 +80,8 @@ public class PartitionInfoManager extends AbstractLifecycle {
      *  key: logical table name
      *  val: the partition info of logical table name
      * <pre/>
+     *
+     * 注意这里用并发数据结构，show tables会并发获取;
      */
     protected Map<String, PartInfoCtx> partInfoCtxCache;
 
@@ -402,7 +406,9 @@ public class PartitionInfoManager extends AbstractLifecycle {
     }
 
     /**
-     * The partition info loading context
+     * The partition info loading context;
+     *
+     * Partition table 信息是针对表的;
      */
     public static class PartInfoCtx {
         protected PartitionInfoManager manager;

@@ -19,6 +19,10 @@ package com.alibaba.polardbx.gms.metadb.record;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+/**
+ * ResultSet.row -> SystemTableRecord;
+ * 通过sql返回值 ResultSet next() 遍历下一行，getXXX(columnIndex) 获取列值;
+ */
 public interface SystemTableRecord {
 
     /**

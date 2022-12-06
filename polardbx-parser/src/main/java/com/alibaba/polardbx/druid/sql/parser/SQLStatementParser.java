@@ -494,6 +494,13 @@ public class SQLStatementParser extends SQLParser {
         }
     }
 
+    /**
+     * 执行parse逻辑;
+     *
+     * @param statementList
+     * @param max
+     * @param parent
+     */
     public void parseStatementList(List<SQLStatement> statementList, int max, SQLObject parent) {
         if ("select @@session.tx_read_only".equals(lexer.text.toString())
             && lexer.token == Token.SELECT) {

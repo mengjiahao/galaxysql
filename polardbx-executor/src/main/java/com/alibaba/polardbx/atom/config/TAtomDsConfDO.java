@@ -26,7 +26,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * TAtom数据源全局和应用配置的DO
+ * TAtom数据源全局和应用配置的DO;
+ * 配置 DN 信息;
+ *
+ * TAtomDsConfDO[ip=127.0.0.1,port=4886,originXport=32886,xport=32886,dbName=test_single,userName=my_polarx,passwd=T2*O7#M8#6*W5$V7$hH1%O9%9^5+(%,driverClass=<null>,sorterClass=com.alibaba.polardbx.common.jdbc.sorter.MySQLExceptionSorter,preparedStatementCacheSize=0,initPoolSize=0,minPoolSize=5,maxPoolSize=60,blockingTimeout=5000,idleTimeout=60,evictionTimeout=0,dbTypeEnum=MYSQL,dbStautsEnum=RW_STATUS,dbStatus=RW,connectionProperties={rewriteBatchedStatements=true, failOverReadOnly=false, connectTimeout=5000, socketTimeout=900000, characterEncoding=utf8, autoReconnect=true, useServerPrepStmts=false, useSSL=false},writeRestrictTimes=0,readRestrictTimes=0,timeSliceInMillis=0,threadCountRestrict=0,maxConcurrentReadRestrict=0,maxConcurrentWriteRestrict=0,characterEncoding=<null>,isSingleInGroup=false,connectionInitSql=set names utf8mb4,maxWaitThreadCount=0,useLoadVariablesFilter=true,createScheduler=true,destroyScheduler=true,onFatalErrorMaxActive=8,dsMode=<null>,enableKeepAlive=true,strictKeepAlive=true,defaultTransactionIsolation=0];
+ *
  *
  * @author qihao
  * @author shenxun

@@ -37,6 +37,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * metadb 系统表 read_write_lock 操作;
+ */
 public class ReadWriteLockAccessor extends AbstractAccessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReadWriteLockAccessor.class);
@@ -106,6 +109,11 @@ public class ReadWriteLockAccessor extends AbstractAccessor {
         }
     }
 
+    /**
+     * select READ_WRITE_LOCK_TABLE owner;
+     * @param owner
+     * @return
+     */
     public List<ReadWriteLockRecord> query(String owner) {
         try {
             final Map<Integer, ParameterContext> params =

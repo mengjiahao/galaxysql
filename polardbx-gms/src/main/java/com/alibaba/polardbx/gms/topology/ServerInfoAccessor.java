@@ -39,6 +39,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 集群CN节点信息记录在 metadb系统表 server_info;
+ *
  * @author chenghui.lch
  */
 public class ServerInfoAccessor extends AbstractAccessor {

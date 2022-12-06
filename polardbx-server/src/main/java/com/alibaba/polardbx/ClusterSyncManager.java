@@ -46,7 +46,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * server集群多机通知
+ * server 集群多机通知;
  *
  * @author agapple 2015年3月26日 下午6:53:29
  * @since 5.1.19
@@ -81,6 +81,7 @@ public class ClusterSyncManager extends AbstractLifecycle implements ISyncManage
     private List<List<Map<String, Object>>> doSync(IGmsSyncAction action, String schemaName,
                                                    SyncScope scope, ISyncResultHandler handler,
                                                    boolean throwExceptions) {
+        // Collections.synchronizedList 返回同步队列，注意 iterator方法不是安全的
         final List<List<Map<String, Object>>> results = Collections.synchronizedList(new ArrayList(1));
         final List<Pair<NodeInfo, List<Map<String, Object>>>> resultsForHandler =
             Collections.synchronizedList(new ArrayList(1));
@@ -118,6 +119,7 @@ public class ClusterSyncManager extends AbstractLifecycle implements ISyncManage
             syncNodes.addAll(originSyncNodes);
         }
 
+        // 执行远端节点的同步
         if (GeneralUtil.isNotEmpty(syncNodes)) {
             sync(resultsForHandler, localNode, syncNodes, action, schemaName, throwExceptions);
             for (Pair<NodeInfo, List<Map<String, Object>>> result : resultsForHandler) {
@@ -137,9 +139,20 @@ public class ClusterSyncManager extends AbstractLifecycle implements ISyncManage
         return results;
     }
 
+    /**
+     * 通过JDBC SQL 将 action 同步到 集群其他CN节点，注意会同步等待执行结果;
+     *
+     * @param resultsForHandler
+     * @param localNode
+     * @param remoteNodes
+     * @param action
+     * @param schemaName
+     * @param throwExceptions
+     */
     private void sync(List<Pair<NodeInfo, List<Map<String, Object>>>> resultsForHandler, NodeInfo localNode,
                       List<NodeInfo> remoteNodes, IGmsSyncAction action, String schemaName, boolean throwExceptions) {
         // Use thread pool for manager port to avoid conflict with server port.
+        /** 通过线程池提交同步任务 */
         ExecutorTemplate template = new ExecutorTemplate(CobarServer.getInstance().getManagerExecutor());
 
         Map<String, String> nodeExceptions = new HashMap<>();
@@ -184,6 +197,14 @@ public class ClusterSyncManager extends AbstractLifecycle implements ISyncManage
         }
     }
 
+    /**
+     * 一般用于同步给 leader, 构造sync sql 并通过 JDBC 发送给 leader;
+     *
+     * @param action A specific sync action.
+     * @param schemaName A specific schema.
+     * @param serverKey A specific server key. (ip:port)
+     * @return
+     */
     @Override
     public List<Map<String, Object>> sync(IGmsSyncAction action, String schemaName, String serverKey) {
 
@@ -200,6 +221,7 @@ public class ClusterSyncManager extends AbstractLifecycle implements ISyncManage
             return ExecUtils.resultSetToList((ResultCursor) action.sync());
         }
 
+        /** 构造成query  IGmsSyncAction -> sync sql */
         final String sql = buildRequestSql(action, schemaName);
 
         DataSource dataSource = getDataSource(serverKey, remoteNodes);
@@ -214,6 +236,13 @@ public class ClusterSyncManager extends AbstractLifecycle implements ISyncManage
         }
     }
 
+    /**
+     * 构造成JDBC query: SYNC schema IGmsSyncAction(JSON);
+     *
+     * @param action
+     * @param schema
+     * @return
+     */
     private String buildRequestSql(IGmsSyncAction action, String schema) {
         String data = JSON.toJSONString(action, SerializerFeature.WriteClassName);
         return "SYNC " + schema + " " + data;

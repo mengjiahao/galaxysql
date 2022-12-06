@@ -39,6 +39,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * XXXAccessor 对应访问metabd的XXX系统表;
+ */
 public abstract class AbstractAccessor extends AbstractLifecycle {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractAccessor.class);
@@ -47,6 +50,7 @@ public abstract class AbstractAccessor extends AbstractLifecycle {
     protected static final String SINGLE_QUOTE = "'";
     protected static final String QUESTION_MARK = "?";
 
+    /** Connection 会被多个组件共享，需要看是否会被多线程并发访问. JDBC 连接一般不建议多线程共享，而是使用连接池; */
     protected Connection connection;
 
     public Connection getConnection() {
@@ -61,6 +65,11 @@ public abstract class AbstractAccessor extends AbstractLifecycle {
         return "`" + identifier + "`";
     }
 
+    /**
+     * 注意接口设计上数据结构使用 Collection/List/Map;
+     * @param names
+     * @return
+     */
     protected String concat(Collection<String> names) {
         if (names == null || names.isEmpty()) {
             return null;

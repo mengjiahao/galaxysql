@@ -37,6 +37,8 @@ import java.util.Map;
 
 /**
  * @author chenghui.lch
+ *
+ * SQL访问metadb config_listener 系统表，实现了类似diamond的推送功能;
  */
 public class ConfigListenerAccessor extends AbstractAccessor {
 
@@ -74,6 +76,7 @@ public class ConfigListenerAccessor extends AbstractAccessor {
     private static final String INSERT_IGNORE_INTO_ONE_DATA_ID = "insert ignore into `" + CONFIG_LISTENER_TABLE
         + "` (id, gmt_created, gmt_modified, data_id, status, op_version, extras) values (null, now(), now(), ?, ?, ?, NULL)";
 
+    // The value of mysql_insert_id() is affected only by statements issued within the current client connection. It is not affected by statements issued by other clients.
     private static final String UPDATE_DATA_ID_OPVERSION = "update `" + CONFIG_LISTENER_TABLE
         + "` set op_version=LAST_INSERT_ID(op_version + 1) where data_id=?;";
 
@@ -273,6 +276,11 @@ public class ConfigListenerAccessor extends AbstractAccessor {
         }
     }
 
+    /**
+     * 自增 config_listener 中 dataId 对应的 op_version;
+     * @param dataId
+     * @return
+     */
     public long updateOpVersion(String dataId) {
         try {
             Map<Integer, ParameterContext> updateParams = MetaDbUtil.buildStringParameters(new String[] {dataId});

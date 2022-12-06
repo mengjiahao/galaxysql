@@ -42,6 +42,10 @@ import java.util.Properties;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Logger;
 
+/**
+ * 保存节点对应的 jdbcUrl 信息, 可获取 Connection;
+ * 使用的是 managerPort 运维端口;
+ */
 public class GmsSyncDataSource extends AbstractLifecycle implements DataSource {
 
     private static MessageFormat MYSQL_URL_FORMAT = new MessageFormat("jdbc:mysql://{0}:{1}/{2}");

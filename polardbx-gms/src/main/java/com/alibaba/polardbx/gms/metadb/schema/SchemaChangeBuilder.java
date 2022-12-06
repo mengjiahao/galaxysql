@@ -38,6 +38,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 从 galaxysql/polardbx-gms/src/main/resources/ddl 提取SystemTable DDLs到 schemaChanges;
+ */
 public class SchemaChangeBuilder extends AbstractLifecycle {
 
     private static final Logger LOGGER = LoggerInit.TDDL_DYNAMIC_CONFIG;
@@ -89,6 +92,7 @@ public class SchemaChangeBuilder extends AbstractLifecycle {
             throw new TddlRuntimeException(ErrorCode.ERR_GMS_UNEXPECTED, "read DDL Index File", errMsg);
         }
 
+        // DDL_INDEX_FILE -> InputStream -> BufferedReader -> FileName -> xmlFileContents -> DDL
         List<String> xmlFiles = new ArrayList<>();
         try {
             BufferedReader ddlIndexFileReader = new BufferedReader(new InputStreamReader(ddlIndexFileStream));
@@ -124,6 +128,12 @@ public class SchemaChangeBuilder extends AbstractLifecycle {
         return 0L;
     }
 
+    /**
+     * xml内容是 (CreateDDL, ChangeDDLs);
+     * @param systemTables
+     * @param xmlFileName
+     * @return
+     */
     private long resolveSystemTables(Element systemTables, String xmlFileName) {
         String unexpectedContent = "resolve schema change file content";
 
@@ -153,6 +163,7 @@ public class SchemaChangeBuilder extends AbstractLifecycle {
                 }
 
                 // The only full table creation statement.
+                // 解析 <Create>;
                 String createDDL;
                 NodeList createList = systemTableElem.getElementsByTagName(TAG_DDL_CREATE);
                 if (createList != null && createList.getLength() == 1) {
@@ -168,6 +179,7 @@ public class SchemaChangeBuilder extends AbstractLifecycle {
                 }
 
                 // The schema change statements that may be empty.
+                // 解析 <Change>;
                 List<String> changeDDLs = null;
                 NodeList changeList = systemTableElem.getElementsByTagName(TAG_DDL_CHANGE);
                 if (changeList != null && changeList.getLength() > 0) {

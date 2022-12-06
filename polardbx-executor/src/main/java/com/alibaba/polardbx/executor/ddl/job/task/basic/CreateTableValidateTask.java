@@ -26,6 +26,9 @@ import com.alibaba.polardbx.optimizer.context.ExecutionContext;
 import com.alibaba.polardbx.rule.TableRule;
 import lombok.Getter;
 
+/**
+ * 校验 table topology 中是否已存在表名;
+ */
 @Getter
 @TaskName(name = "CreateTableValidateTask")
 public class CreateTableValidateTask extends BaseValidateTask {

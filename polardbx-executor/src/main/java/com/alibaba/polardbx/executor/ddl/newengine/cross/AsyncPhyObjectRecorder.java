@@ -39,6 +39,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * 异步执行 PhyObjectTask 任务，更新 DDL task 元数据;
+ */
 public class AsyncPhyObjectRecorder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AsyncPhyObjectRecorder.class);
@@ -84,6 +87,9 @@ public class AsyncPhyObjectRecorder {
         return asyncPhyObjectRecorder != null ? asyncPhyObjectRecorder.getPhyObjectTaskQueue() : null;
     }
 
+    /**
+     * 执行 phyObjectTaskQueue 中 PhyObjectTask， 更新 DdlTask 元数据;
+     */
     public class PhyObjectRecorderTask implements Runnable {
 
         @Override
@@ -127,6 +133,7 @@ public class AsyncPhyObjectRecorder {
                 int retryTimes = 0;
                 while (true) {
                     try {
+                        /** 更新 DDL task 元数据*/
                         DdlJobManagerUtils.resetPhyTablesDone(phyDdlInfo.getKey());
                         break;
                     } catch (Exception e) {
@@ -147,6 +154,7 @@ public class AsyncPhyObjectRecorder {
                         phyObjectTask.setException(exception);
                     }
                 } else {
+                    // 执行 phyObjectTask
                     for (PhyObjectTask phyObjectTask : phyDdlInfo.getValue()) {
                         phyObjectTask.run();
                     }

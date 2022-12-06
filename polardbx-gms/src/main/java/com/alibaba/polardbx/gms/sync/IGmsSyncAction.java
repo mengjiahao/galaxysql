@@ -20,6 +20,7 @@ public interface IGmsSyncAction {
 
     /**
      * Do the sync operation on a server node.
+     * sync 用来包装 其他接口，代理调用;
      *
      * @return sync result
      */

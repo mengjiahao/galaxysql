@@ -92,10 +92,14 @@ public class DdlEngineRequester {
         return ddlJobManager.storeSubJob(parentJobId, parentTaskId, ddlJob, ddlContext, forRollback);
     }
 
+    /**
+     * 执行 DDL 任务分发， 同步等待结果;
+     */
     public void execute() {
+        /** resources: test.tb1 */
         ddlContext.setResources(ddlJob.getExcludeResources());
 
-        // Create a new job and put it in the queue.
+        /** Create a new job and put it in the metadb queue. */
         ddlJobManager.storeJob(ddlJob, ddlContext);
 
         // Request the leader to perform the job.
@@ -108,19 +112,30 @@ public class DdlEngineRequester {
         respond(ddlRequest, ddlJobManager, executionContext, true);
     }
 
+    /**
+     *
+     * @param schemaName test
+     * @param jobId [1534691155403341824]
+     * @return
+     */
     public static DdlRequest notifyLeader(String schemaName, List<Long> jobId) {
         // Build a new DDL request.
+        // (jobId, schemaName) -> DdlRequest
         DdlRequest ddlRequest = DdlJobManager.buildRequest(jobId, schemaName);
 
         // Notify the leader of new DDL request.
         if (ExecUtils.hasLeadership(null)) {
-            // Notify myself without sync.
+            // 本CN是Leader 则直接执行
+            // Notify myself without sync
             DdlEngineScheduler.getInstance().notify(ddlRequest);
         } else {
             try {
                 // Fetch the leader key for specific sync.
                 String leaderKey = ExecUtils.getLeaderKey(null);
-                // Notify the leader via Sync Action.
+                /** Notify the leader via Sync Action.
+                 * Worker Node到Leader Node的节点间通信;
+                 * DdlRequestSyncAction 通知执行 DdlEngineScheduler.getInstance().notify(ddlRequest);
+                 **/
                 GmsSyncManagerHelper.sync(new DdlRequestSyncAction(ddlRequest), schemaName, leaderKey);
             } catch (Exception e) {
                 // Log only since the sync failure doesn't affect the leader to perform the DDL job.
@@ -132,6 +147,14 @@ public class DdlEngineRequester {
         return ddlRequest;
     }
 
+    /**
+     * 同步等待 CN leader 节点返回 response;
+     *
+     * @param ddlRequest
+     * @param ddlJobManager
+     * @param executionContext
+     * @param checkResponseInMemory
+     */
     public static void respond(DdlRequest ddlRequest,
                                DdlJobManager ddlJobManager,
                                ExecutionContext executionContext,
@@ -186,6 +209,7 @@ public class DdlEngineRequester {
             // wasn't able to respond to the worker.
             if (totalWaitingTime > checkInterval) {
                 // Check if the job(s) have been pended.
+                /** 从 metadb 中查询 DdlJob 完成状态 */
                 if (ddlJobManager.checkRecords(ddlResponse, jobIds)) {
                     // Double check to avoid miss message
                     if (checkResponseInMemory) {

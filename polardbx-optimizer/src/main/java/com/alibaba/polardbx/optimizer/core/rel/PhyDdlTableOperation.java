@@ -44,18 +44,25 @@ import java.util.Map;
 /**
  * ${DESCRIPTION}
  *
+ * 有 DDL 物理直接计划;
+ * logicalPlan=rel#283:GenericDdl.NONE.[].any();
+ *
  * @author hongxi.chx
  */
 
 public class PhyDdlTableOperation extends BaseTableOperation {
 
+    /** [[tb1_WT7R]]*/
     private List<List<String>> tableNames;
+    /** (1, `tb1_WT7R`) */
     private Map<Integer, ParameterContext> param;
+    /** tb1 */
     private String logicalTableName;
     private String renameLogicalTableName;
     private boolean explain;
     private boolean shadowDbOnly;
     private boolean partitioned;
+    /** (TEST_SINGLE_GROUP, tb1_WT7R) */
     private TableRule tableRule;
     public SequenceBean sequence;
     private boolean ifNotExists;
@@ -80,11 +87,21 @@ public class PhyDdlTableOperation extends BaseTableOperation {
         }
     }
 
+    /**
+     * 有点创建 DDL 逻辑执行计划树的意思;
+     *
+     * @param schemaName
+     * @param tableName
+     * @param executionContext
+     * @return
+     */
     public static PhyDdlTableOperation create(String schemaName,
                                               String tableName,
                                               ExecutionContext executionContext) {
+        // Calcite Rex
         final RelOptCluster cluster =
             SqlConverter.getInstance(executionContext).createRelOptCluster(null);
+        // rel#283:GenericDdl.NONE.[].any()
         GenericDdl genericDdl = GenericDdl.create(
             cluster,
             new SqlIdentifier(schemaName, SqlParserPos.ZERO),

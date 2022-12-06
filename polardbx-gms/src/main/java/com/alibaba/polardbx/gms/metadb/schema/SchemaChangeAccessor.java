@@ -33,6 +33,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * metadb内 schema_change表 + __polardbx_schema_change_lock__ 锁 SQL操作;
+ * schema_change表 记录了 (table_name, version);
+ * execute(String ddl) 会执行 DDL;
+ */
 public class SchemaChangeAccessor extends AbstractAccessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SchemaChangeAccessor.class);
@@ -98,6 +103,10 @@ public class SchemaChangeAccessor extends AbstractAccessor {
         }
     }
 
+    /**
+     * 查询系统表的version;
+     * @return
+     */
     public List<SchemaChangeRecord> query() {
         try {
             return MetaDbUtil.query(SELECT_SCHEMA_CHANGE_TABLE, SchemaChangeRecord.class, connection);
@@ -121,6 +130,10 @@ public class SchemaChangeAccessor extends AbstractAccessor {
         }
     }
 
+    /**
+     * 执行DDL;
+     * @param ddl
+     */
     public void execute(String ddl) {
         try {
             MetaDbUtil.executeDDL(ddl, connection);

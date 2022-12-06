@@ -30,6 +30,8 @@ import java.util.stream.IntStream;
  * MDL锁的持有者
  * 通常是一个frontend connectionId。
  * 也可以是一个schemaName。
+ * OPTIMIZER_LATCHES 乐观锁 并没有被使用；
+ * TConnection 必须通过 MdlContext 来上锁， MdlContext 由 MdlManager 创建;
  *
  * @author chenmo.cm
  */
@@ -38,6 +40,12 @@ public abstract class MdlContext {
     public static final String MDL_CONTEXT = "MDL_CONTEXT";
 
     private static final int LATCH_COUNT = 16;
+    /**
+     * 全局 OPTIMIZER_LATCHES;
+     * StampedLock 是读写锁的改进，有乐观锁/悲观锁/写锁，内部有等待队列进行公平排序;
+     * 它的思想是读写锁中读不仅不阻塞读，同时也不应该阻塞写;
+     * tryOptimisticRead 在读的时候如果发生了写，则应当重读（乐观锁转换为悲观锁）而不是在读的时候直接阻塞写, 类似CAS;
+     * 解决 因为在读线程非常多而写线程比较少的情况下，写线程可能发生饥饿现象; */
     private static final StampedLock[] OPTIMIZER_LATCHES = new StampedLock[LATCH_COUNT];
 
     static {
@@ -113,6 +121,12 @@ public abstract class MdlContext {
 
     }
 
+    /**
+     * 获取 OPTIMIZER_LATCHES  对应的 StampedLock；
+     * @param schema
+     * @param table
+     * @return
+     */
     private static StampedLock getLatch(String schema, String table) {
         final int latchIndex = getLatchIndex(schema, table);
 
@@ -131,6 +145,11 @@ public abstract class MdlContext {
         return Math.floorMod(hash, LATCH_COUNT);
     }
 
+    /**
+     * 获取 OPTIMIZER_LATCHES StampedLock 乐观锁的 stamp;
+     * 乐观锁 只用于 plan阶段？
+     * @return
+     */
     public static long[] snapshotMetaVersions() {
         long[] stamps = new long[LATCH_COUNT];
         IntStream.range(0, LATCH_COUNT).forEach(i -> stamps[i] = OPTIMIZER_LATCHES[i].tryOptimisticRead());
@@ -143,6 +162,12 @@ public abstract class MdlContext {
         return OPTIMIZER_LATCHES[latchIndex].validate(stamps[latchIndex]);
     }
 
+    /**
+     * 居然没有调用。。相当于没有使用;
+     *
+     * @param schema
+     * @param table
+     */
     public static void updateMetaVersion(String schema, String table) {
         final StampedLock latch = getLatch(schema, table);
         latch.unlockWrite(latch.writeLock());

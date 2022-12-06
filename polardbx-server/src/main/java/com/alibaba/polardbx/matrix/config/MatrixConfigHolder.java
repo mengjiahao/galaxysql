@@ -612,9 +612,16 @@ public class MatrixConfigHolder extends AbstractConfigDataHolder {
         context.setSchemaName(schema);
     }
 
+    /**
+     * 调用 DdlEngineDagExecutor 执行 DdlJob;
+     * @param schemaName
+     * @param jobId
+     * @return
+     */
     public DdlContext restoreDDL(String schemaName, Long jobId) {
         ITransaction autoCommitTrans = null;
         try (TConnection conn = (TConnection) dataSource.getConnection()) {
+            /** 设置 ExecutionContext 以及 创建 AutoCommitTransaction(TRANSACTION_REPEATABLE_READ) */
             ExecutionContext executionContext = conn.getExecutionContext();
             executionContext.setExecutorService(conn.getExecutorService());
 

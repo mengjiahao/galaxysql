@@ -54,7 +54,9 @@ import java.util.stream.Collectors;
 
 /**
  * For the purpose of avoiding deadlock
- * Always use this class to manage DDL Engine Resources
+ * Always use this class to manage DDL Engine Resources;
+ *
+ * 利用 metadb 的读写锁 进行保护;
  */
 public class DdlEngineResourceManager {
 
@@ -86,6 +88,17 @@ public class DdlEngineResourceManager {
         acquireResource(schemaName, jobId, __->false, shared, exclusive, (Connection conn) -> true);
     }
 
+    /**
+     * 以事务方式执行func，对同一个table可能冲突，需要先抢占metadb的读写锁;
+     * 注意冲突的话 DDL会同步等待；
+     *
+     * @param schemaName
+     * @param jobId
+     * @param shouldInterrupt
+     * @param shared 可以是database名 test
+     * @param exclusive 可以是表名 test.tb1
+     * @param func
+     */
     public void acquireResource(@NotNull String schemaName,
                                 @NotNull long jobId,
                                 @NotNull Predicate shouldInterrupt,
@@ -98,15 +111,18 @@ public class DdlEngineResourceManager {
         Pair<Set<String>, Set<String>> rwLocks = inferRwLocks(shared, exclusive);
         Set<String> readLocks = rwLocks.getKey();
         Set<String> writeLocks = rwLocks.getValue();
+        // DDL_1534691155403341824
         String owner = PersistentReadWriteLock.OWNER_PREFIX + jobId;
 
         final LocalDateTime beginTs = LocalDateTime.now();
         int retryCount = 0;
 
         try {
+            /** 读写锁 阻塞，不断尝试; 注意冲突的话 DDL会同步等待 */
             while (!lockManager.tryReadWriteLockBatch(schemaName, owner, readLocks, writeLocks, func)) {
                 LocalDateTime now = LocalDateTime.now();
                 if (now.minusHours(1L).isAfter(beginTs)){
+                    // 1h后
                     throw new TddlNestableRuntimeException("GET DDL LOCK TIMEOUT");
                 }
 
@@ -124,6 +140,7 @@ public class DdlEngineResourceManager {
 
                 //check if there's any failed Job holds the lock
                 //if true, don't wait anymore
+                // metadb查看中谁占用了
                 Set<String> blockers = lockManager.queryBlocker(Sets.union(shared, exclusive));
                 LOGGER.info(String.format(
                     "tryReadWriteLockBatch failed, schemaName:[%s], jobId:[%s], retryCount:[%d], shared:[%s], exclusive:[%s], blockers:[%s]",
@@ -209,6 +226,8 @@ public class DdlEngineResourceManager {
     /**
      * infer all the read/write locks need to acquire from resources
      * if a resource exists in both shared and exclusive sets, a write lock is needed
+     *
+     * @return ([test], [test.tb1])
      */
     private Pair<Set<String>, Set<String>> inferRwLocks(Set<String> shared, Set<String> exclusive) {
         Set<String> writeLocks = Sets.newHashSet(exclusive);
@@ -235,6 +254,14 @@ public class DdlEngineResourceManager {
         return Joiner.on(",").join(lockSet);
     }
 
+    /**
+     * 加入 (database, DdlContext) 到内存态 allLocksTryingToAcquire;
+     * 同一个 database 的 DdlContext 会排队;
+     * 只是用于监测？
+     *
+     * @param schemaName test
+     * @param ddlContext
+     */
     public static void startAcquiringLock(String schemaName, DdlContext ddlContext){
         synchronized (allLocksTryingToAcquire){
             if(!allLocksTryingToAcquire.containsKey(schemaName)){

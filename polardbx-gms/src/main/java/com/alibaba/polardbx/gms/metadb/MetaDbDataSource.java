@@ -61,7 +61,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * @author chenghui.lch
+ * @author chenghui.lch.
+ *
+ * MetaDB 也是mysql存储;
  */
 public class MetaDbDataSource extends AbstractLifecycle {
     private static final Logger logger = LoggerFactory.getLogger(MetaDbDataSource.class);
@@ -114,6 +116,10 @@ public class MetaDbDataSource extends AbstractLifecycle {
         return addrList;
     }
 
+    /**
+     * 初始化 MetaDB;
+     * getInstance() 最终调用 构造函数;
+     */
     @Override
     protected void doInit() {
         logger.info("initializing metaDb dataSource");
@@ -266,10 +272,12 @@ public class MetaDbDataSource extends AbstractLifecycle {
         List<StorageInfoRecord> storageInfoRecords = new ArrayList<>();
         if (this.metaDbAddrList.size() == 1) {
             // leaderAddr maybe a vip
+            // 开源版本 metadb只支持1个，metaDbAddr=127.0.0.1:3306;
             String leaderAddr = metaDbAddrList.get(0);
             Pair<String, Integer> ipPort = AddressUtils.getIpPortPairByAddrStr(leaderAddr);
 
             // Fetch all storage host list from metadb by the metaDbAddrList set by startup.sh params
+            // metaDbConn 是 mysql:jdbc 连接;
             try (Connection metaDbConn = GmsJdbcUtil
                 .buildJdbcConnection(ipPort.getKey(), ipPort.getValue(), this.metaDbName, this.metaDbUser,
                     this.metaDbEncPasswd, MetaDbDataSource.DEFAULT_META_DB_PROPS)) {
@@ -462,6 +470,9 @@ public class MetaDbDataSource extends AbstractLifecycle {
         }
     }
 
+    /**
+     * @return 注意metadb的连接是单例;
+     */
     public Connection getConnection() {
         try {
             Connection conn = physicalDataSourceHaWrapper.getConnection();
@@ -476,6 +487,10 @@ public class MetaDbDataSource extends AbstractLifecycle {
         return physicalDataSourceHaWrapper;
     }
 
+    /**
+     * metadb 是 锁+单例模式;
+     * @return
+     */
     public static MetaDbDataSource getInstance() {
         if (instance == null) {
             return null;
@@ -504,11 +519,13 @@ public class MetaDbDataSource extends AbstractLifecycle {
             throw new TddlRuntimeException(ErrorCode.ERR_GMS_GENERIC, "Init meta db error, passwd is null");
         }
 
+        // init meta db config
         MetaDbDataSource metaDbDataSource = new MetaDbDataSource(addrs, dbName, props, usr, pwd);
         instance = metaDbDataSource;
 
         // Init meta db datasource
         try {
+            // 创建了对 metadb 的连接;
             MetaDbDataSource.getInstance();
             MetaDbLogUtil.META_DB_LOG.info(String.format("Init metadb: addrs=%s dbName=%s user=%s passwd=%s",
                 addrs, dbName, usr, pwd));

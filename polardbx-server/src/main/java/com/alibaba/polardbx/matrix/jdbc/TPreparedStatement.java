@@ -53,7 +53,13 @@ public class TPreparedStatement extends TStatement implements ITPrepareStatement
         }
     }
 
-    // jdbc规范: 返回true表示executeQuery，false表示executeUpdate
+    /**
+     * jdbc规范: 返回true表示executeQuery，false表示executeUpdate;
+     * 注意线程拥有 executionContext, 可以复制；
+     *
+     * @return
+     * @throws SQLException
+     */
     @Override
     public boolean execute() throws SQLException {
         checkClosed();
@@ -80,6 +86,11 @@ public class TPreparedStatement extends TStatement implements ITPrepareStatement
         return this.executeQuery(sql);
     }
 
+    /**
+     * DDL 会执行到这;
+     * @param sql
+     * @throws SQLException
+     */
     @Override
     protected void executeSQL(ByteString sql) throws SQLException {
         currentResultSet = conn.executeSQL(sql, params, this, executionContext);

@@ -82,6 +82,7 @@ public final class NIOReactor {
             this.registerQueue = new LinkedBlockingQueue<NIOConnection>();
         }
 
+        /** 在网络线程 Processor2-R 中 */
         @Override
         public void run() {
             final Selector selector = this.selector;

@@ -29,7 +29,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * sync的代理类,基于extenstion查找具体实现
+ * sync的代理类, 基于extenstion查找具体实现
+ * 直接在 CN 间进行直接同步， 同步等待执行结果;
  *
  * @author agapple 2015年3月26日 下午5:51:31
  * @since 5.1.19

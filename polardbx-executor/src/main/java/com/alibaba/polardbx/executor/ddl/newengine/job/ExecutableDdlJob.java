@@ -26,7 +26,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * ExecutableDdlJob will store in MetaDB, and executed by leader CN
+ * ExecutableDdlJob will store in MetaDB, and executed by leader CN;
+ *
+ * 包含 DdlJob 执行的 DAG;
+ *
  */
 public class ExecutableDdlJob extends AbstractDdlJob {
 

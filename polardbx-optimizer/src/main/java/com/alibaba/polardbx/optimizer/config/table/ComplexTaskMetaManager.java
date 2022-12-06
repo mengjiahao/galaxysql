@@ -330,9 +330,16 @@ public class ComplexTaskMetaManager extends AbstractLifecycle {
         }
     }
 
+    /**
+     *
+     * @param schemaName
+     * @return
+     */
     public static List<ComplexTaskOutlineRecord> getAllUnFinishParentComlexTask(String schemaName) {
 
         try (Connection conn = MetaDbUtil.getConnection()) {
+            // XConnection for XSession sid=861 status=Ready from XClient of X-NIO-Client /127.0.0.1:53460 to /127.0.0.1:32886 to my_polarx@127.0.0.1:32886
+            // metaDbXprotoPort=32886
             ComplexTaskOutlineAccessor complexTaskOutlineAccessor = new ComplexTaskOutlineAccessor();
             complexTaskOutlineAccessor.setConnection(conn);
             return complexTaskOutlineAccessor.getAllUnFinishParentComlexTask(schemaName);

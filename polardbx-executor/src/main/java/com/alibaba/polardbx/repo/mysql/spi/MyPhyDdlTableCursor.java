@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ *  调用JDBC 让 DN 执行 DDL 逻辑;
+ *
  * Created by xiaoying on 18/06/03.
  */
 public class MyPhyDdlTableCursor extends PhyDdlTableCursor {
@@ -46,13 +48,24 @@ public class MyPhyDdlTableCursor extends PhyDdlTableCursor {
 
     public MyPhyDdlTableCursor(ExecutionContext ec, BaseTableOperation logicalPlan, MyRepository repo) {
         this.plan = logicalPlan;
+        // MyJdbcHandler
         this.handler = repo.createQueryHandler(ec);
         this.handler.setOperatorStatistics(new OperatorStatisticsExt());
+        /**
+         * CREATE_TABLE -> [null.AFFECT_ROW]
+         */
         this.cursorMeta = CalciteUtils.buildDmlCursorMeta();
+        /**
+         * CREATE_TABLE -> Field [originTableName=null, originColumnName=AFFECT_ROW, dataType=INTEGER, autoIncrement=false, primary=false];
+         */
         this.returnColumns = cursorMeta.getColumns();
         init();
     }
 
+    /**
+     * DDL 返回值只有 1个，只能迭代1次；
+     * @return
+     */
     @Override
     public Row doNext() {
         try {
@@ -70,6 +83,10 @@ public class MyPhyDdlTableCursor extends PhyDdlTableCursor {
         }
     }
 
+    /**
+     * DN 真正执行 DDL;
+     * 注意在 构造函数里 让 DN 执行 DDL;
+     */
     @Override
     public void doInit() {
         if (inited) {

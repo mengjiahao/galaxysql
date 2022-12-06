@@ -42,6 +42,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 每个 schema 有单独对应的 MdlManagerStamped;
+ * 执行 上锁的 地方;
+ * 有无效锁的异步清理工作；
+ *
  * @author chenmo.cm
  */
 public class MdlManagerStamped extends MdlManager {
@@ -49,13 +53,16 @@ public class MdlManagerStamped extends MdlManager {
     private static final Logger logger = LoggerFactory.getLogger(MdlManagerStamped.class);
 
     /**
-     * 锁对象列表，schema 下的每个锁对象对应一个 MdlLock 由于被所有前端连接共享，需要异步定时清理
+     * 锁对象列表，schema 下的每个锁对象对应一个 MdlLock 由于被所有前端连接共享，需要异步定时清理;
      */
     private final Map<MdlKey, MdlLock> mdlMap = new ConcurrentHashMap<>();
 
     /**
-     * 当前 schema 中全部被持有的锁，按照 连接 和 MdlKey 分组 目前这里假定锁都是可重入的，因此每种锁都只有一个
-     * map<frontConnId, Map<key, ticket>>
+     * 当前 schema 中全局被持有的锁信息，用于锁清理；
+     * 按照 连接 和 MdlKey 分组 目前这里假定锁都是可重入的，因此每种锁都只有一个
+     * map<frontConnId, ConcurrentHashMap<MdlKey, MdlTicket>>;
+     *
+     * MdlContextStamped 有 tickets，这里又有 1个 tickets;
      */
     private final Map<String, Map<MdlKey, MdlTicket>> tickets = new ConcurrentHashMap<>();
 
@@ -71,13 +78,16 @@ public class MdlManagerStamped extends MdlManager {
             new ThreadPoolExecutor.CallerRunsPolicy());
 
         /**
-         * 定时清理无用的锁对象, 避免大量建/删表导致内存问题
+         * 每1h 定时清理无用的锁对象, 避免大量建/删表导致内存问题；
+         * 可以删除 mdlMap 会影响到事务执行吗？
+         * 怎么判断有没有用？什么情况下锁没释放？
          */
         scheduler.scheduleWithFixedDelay(() -> {
             try {
                 final Set<MdlKey> mdlKeys = new HashSet<>(mdlMap.keySet());
 
                 mdlKeys.forEach(k -> mdlMap.computeIfPresent(k, (key, lock) -> {
+                    // 尝试加 写锁
                     if (lock.latchWrite()) {
                         try {
                             // remove unused lock
@@ -116,7 +126,8 @@ public class MdlManagerStamped extends MdlManager {
 
     /**
      * Implemented as a reentrant lock, for single front connection, always
-     * return same MdlTicket object for same MdlKey
+     * return same MdlTicket object for same MdlKey；
+     * 根据 MdlRequest 请求来上锁；
      */
     @Override
     public MdlTicket acquireLock(@NotNull final MdlRequest request, @NotNull final MdlContext context) {
@@ -129,6 +140,11 @@ public class MdlManagerStamped extends MdlManager {
         }
     }
 
+    /**
+     * 通过 tickets 获取 mdlKey 对应的所有 MdlTicket;
+     * @param mdlKey
+     * @return
+     */
     @Override
     public List<MdlTicket> getWaitFor(MdlKey mdlKey){
         List<MdlTicket> contextIdList = new ArrayList<>();
@@ -155,15 +171,24 @@ public class MdlManagerStamped extends MdlManager {
         }
     }
 
+    /**
+     * 对 MdlRequest 的 key 创建对应的 MdlLock 并上悲观读锁;
+     * @param request
+     * @param context
+     * @return
+     */
     private MdlTicket readLock(@NotNull final MdlRequest request, @NotNull final MdlContext context) {
         // 缩小 map 锁定的范围
         final Map<MdlKey, MdlTicket> keyTickets = tickets.computeIfAbsent(context.getConnId(),
             cid -> new ConcurrentHashMap<>());
 
+        //  对 MdlKey 上悲观读锁， 并存入 mdlMap;
+        // 为啥 外层 还要加一次锁？
         final MdlLock mdlLock = getAndLatchMdlLock(request.getKey());
         try {
             return keyTickets.compute(request.getKey(), (k, t) -> {
 
+                // 又上了一次读锁？这个读锁与之前的不一样？
                 if (null == t) {
                     t = new MdlTicket(request, mdlLock, context, mdlLock.readLock());
                 }
@@ -177,6 +202,7 @@ public class MdlManagerStamped extends MdlManager {
                 return t;
             });
         } finally {
+            // 上了读锁最后又释放了？
             mdlLock.unlatchRead();
         }
     }
@@ -202,15 +228,25 @@ public class MdlManagerStamped extends MdlManager {
         });
     }
 
+    /**
+     * 注意只对 MdlRequest.getKey 上锁，控制锁的资源粒度；
+     *
+     * @param request
+     * @param context
+     * @return
+     */
     private MdlTicket writeLock(@NotNull MdlRequest request, @NotNull MdlContext context) {
         // 缩小 map 锁定的范围
         final Map<MdlKey, MdlTicket> keyTickets = tickets.computeIfAbsent(context.getConnId(),
             cid -> new ConcurrentHashMap<>());
 
+        // 先加读锁
         final MdlLock mdlLock = getAndLatchMdlLock(request.getKey());
         try {
+            // 注意 keyTickets 也是 ConcurrentHashMap
             return keyTickets.compute(request.getKey(), (k, t) -> {
 
+                // 升级为写锁 来 获取 MdlTicket
                 if (null == t) {
                     t = new MdlTicket(request, mdlLock, context, mdlLock.writeLock());
                 } else {
@@ -248,7 +284,13 @@ public class MdlManagerStamped extends MdlManager {
         });
     }
 
+    /**
+     * 对 MdlKey 上悲观读锁， 并存入 mdlMap;
+     * @param key
+     * @return
+     */
     private MdlLock getAndLatchMdlLock(@NotNull MdlKey key) {
+        // ConcurrentHashMap apply 执行前有 锁保护；
         return mdlMap.compute(key, (k, l) -> {
             if (null == l) {
                 l = new MdlLockStamped(k);

@@ -163,11 +163,18 @@ public class PlanManager extends AbstractLifecycle implements BaselineManageable
         return plan;
     }
 
+    /**
+     * 从 PlanCache 获取 参数化 sql 对应的 plan;
+     *
+     * @param sqlParameterized
+     * @param executionContext
+     * @return
+     */
     @Override
     public ExecutionPlan choosePlan(SqlParameterized sqlParameterized, ExecutionContext executionContext) {
         PlannerContext plannerContext = PlannerContext.fromExecutionContext(executionContext);
         String schemaName = executionContext.getSchemaName();
-        // plan cache
+        /**  plan cache 中尝试获取 */
         ExecutionPlan executionPlan;
         try {
             executionPlan = PlanCache.getInstance()
@@ -284,6 +291,9 @@ public class PlanManager extends AbstractLifecycle implements BaselineManageable
         return result.plan;
     }
 
+    /**
+     * 会不会 invalidate 期间被并发访问
+     */
     public void invalidateCache() {
         PlanCache.getInstance().invalidate();
     }

@@ -51,6 +51,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * show datasources 获取集群信息;
+ *
  * @author chenmo.cm
  */
 public class LogicalShowDatasourcesHandler extends HandlerCommon {

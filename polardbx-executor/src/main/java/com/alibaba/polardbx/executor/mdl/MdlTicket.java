@@ -19,7 +19,9 @@ package com.alibaba.polardbx.executor.mdl;
 import com.alibaba.polardbx.executor.mpp.metadata.NotNull;
 
 /**
- * 获取到的锁对象
+ * 获取到的锁对象 (lock, context, stamp);
+ * 成员都是引用；
+ * 获取锁对应的 stamp，需要用来unlock;
  *
  * @author chenmo.cm
  */
@@ -59,6 +61,10 @@ public final class MdlTicket {
         return validate;
     }
 
+    /**
+     * unlock read/write 后都设置成false;
+     * @param validate
+     */
     public synchronized void setValidate(boolean validate) {
         this.validate = validate;
     }

@@ -56,6 +56,11 @@ public class MetaUtils {
     public static Logger logger = LoggerFactory.getLogger(MetaUtils.class);
     private static String EMPTY = "";
 
+    /**
+     * 对 SqlSelect 才返回 tableNames;
+     * @param node
+     * @return
+     */
     public static List<String> buildTableNamesForNode(SqlNode node) {
         if (node instanceof SqlSelect) {
             try {

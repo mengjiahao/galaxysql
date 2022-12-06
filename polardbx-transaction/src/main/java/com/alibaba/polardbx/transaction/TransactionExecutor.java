@@ -116,9 +116,15 @@ public class TransactionExecutor extends TopologyExecutor {
 
     @Override
     public Cursor execByExecPlanNode(RelNode relNode, ExecutionContext executionContext) {
+        /**
+         * 单库单表:
+         * AutoCommitTransaction;
+         */
         ITransaction trx = executionContext.getTransaction();
 
         if (!(trx instanceof AbstractTransaction)) {
+            // AutoCommitTransaction
+            // 调用 TopologyExecutor.execByExecPlanNode
             return super.execByExecPlanNode(relNode, executionContext);
         }
 

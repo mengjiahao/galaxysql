@@ -21,6 +21,9 @@ import com.alibaba.polardbx.common.utils.TStringUtil;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 管理 DDL 语句;
+ */
 public class MultiDdlContext {
 
     private int numOfPlans = 1;

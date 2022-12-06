@@ -89,7 +89,11 @@ import java.util.stream.Collectors;
 import static org.apache.calcite.sql.SqlKind.IS_NULL;
 
 /**
- * 优化器中使用Tddl Rule的一些工具方法，需要依赖{@linkplain TddlRule}自己先做好初始化
+ * 优化器中使用Tddl Rule的一些工具方法，需要依赖{@linkplain TddlRule}自己先做好初始化;
+ *
+ * table topology 表的路由规则，有 database/group/table/partition 信息;
+ * 有个一致性hash的概念, tablegroup 里的table的分区算法一致;
+ * tddlRule 缓存有拓扑信息？
  *
  * @since 5.0.0
  */
@@ -112,6 +116,7 @@ public class TddlRuleManager extends AbstractLifecycle {
     }
 
     private final TddlRule tddlRule;
+    /** test下可能有9个分库，[TEST_000000_GROUP,...,TEST_000007_GROUP, TEST_SINGLE_GROUP] */
     private List<String> groupNames = null;
     private final String schemaName;
     private PartitionInfoManager partitionInfoManager;
@@ -177,6 +182,8 @@ public class TddlRuleManager extends AbstractLifecycle {
 
     /**
      * 根据逻辑表返回一个随机的物理目标库TargetDB
+     *
+     * @param logicTable 表名 tb1
      */
     public TargetDB shardAny(String logicTable) {
 
@@ -191,9 +198,14 @@ public class TddlRuleManager extends AbstractLifecycle {
 
         TableRule tableRule = getTableRule(logicTable);
         if (tableRule == null) {
+            /**
+             * 单库单表在这: TargetDB[dbIndex=TEST_SINGLE_GROUP,tableNames={tb1=Field[sourceKeys={}]},logTblName=<null>]
+             * 分库分表 也是 TEST_SINGLE_GROUP?
+             */
             System.out.println(logicTable + " rule==null");
             // 设置为同名，同名不做转化
             TargetDB target = new TargetDB();
+            // DbIndex=TEST_SINGLE_GROUP
             target.setDbIndex(getDefaultDbIndex(logicTable));
             target.addOneTable(logicTable);
             return target;
@@ -209,6 +221,7 @@ public class TddlRuleManager extends AbstractLifecycle {
                     continue;
                 }
 
+                // TargetDB[dbIndex=TEST_SINGLE_GROUP,tableNames={tb3_H2NL=Field[sourceKeys={}]},logTblName=<null>]
                 TargetDB target = new TargetDB();
                 target.setDbIndex(group);
                 target.addOneTable(tableNames.iterator().next());
@@ -462,7 +475,8 @@ public class TddlRuleManager extends AbstractLifecycle {
     }
 
     /**
-     * 判断一下规则中是否只有一个db库
+     * 判断一下规则中是否只有一个db库;
+     *
      */
     public boolean isSingleDbIndex() {
 
@@ -474,6 +488,7 @@ public class TddlRuleManager extends AbstractLifecycle {
             return false;
         }
 
+        // 返回已经存在的表 (TEST_SINGLE_GROUP, tb0_uf48)
         Collection<TableRule> tableRules = tddlRule.getTables();
         Map<String, String> dbIndexMap = tddlRule.getDbIndexMap();
         // 没有任何规则
@@ -481,12 +496,14 @@ public class TddlRuleManager extends AbstractLifecycle {
             return true;
         }
 
+        // TEST_SINGLE_GROUP
         String defaultDbIndex = tddlRule.getDefaultDbIndex();
         if (!tableRules.isEmpty()) {
             for (TableRule table : tableRules) {
                 // 逻辑表名应该和物理表名相等
                 if (table.getTbNamePattern() != null) {
                     if (!TStringUtil.equalsIgnoreCase(table.getVirtualTbName(), table.getTbNamePattern())) {
+                        // (tb0, tb0_uf48)
                         return false;
                     }
                 }

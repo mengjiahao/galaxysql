@@ -40,6 +40,9 @@ import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * 集群 CN 节点信息集合;
+ */
 public class AllNodes {
     private Set<InternalNode> activeNodes;
     private Set<InternalNode> otherActiveNodes;
@@ -142,6 +145,10 @@ public class AllNodes {
         return workers;
     }
 
+    /**
+     * 从 activeNodes 中获取 Coordinator 节点;
+     * @return
+     */
     public List<Node> getAllCoordinators() {
         List<Node> coordinators = new ArrayList<>();
         for (Node node : activeNodes) {

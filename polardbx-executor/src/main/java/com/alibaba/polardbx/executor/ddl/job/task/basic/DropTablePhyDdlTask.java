@@ -22,6 +22,9 @@ import com.alibaba.polardbx.executor.ddl.job.task.BasePhyDdlTask;
 import com.alibaba.polardbx.executor.ddl.job.task.util.TaskName;
 import com.alibaba.polardbx.optimizer.context.ExecutionContext;
 
+/**
+ * DropTablePhyDdlTask 没有对应的 rollback 执行计划;
+ */
 @TaskName(name = "DropTablePhyDdlTask")
 public class DropTablePhyDdlTask extends BasePhyDdlTask {
 

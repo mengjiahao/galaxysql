@@ -22,7 +22,8 @@ import com.alibaba.polardbx.druid.sql.parser.ByteString;
 import com.alibaba.polardbx.executor.mpp.metadata.NotNull;
 
 /**
- * 线程请求锁时使用的对象，加锁成功后会将返回一个 MdlTicket
+ * 线程请求锁时使用的对象，加锁成功后会将返回一个 MdlTicket；
+ * 可视为 trx 的信息；
  *
  * @author chenmo.cm
  */

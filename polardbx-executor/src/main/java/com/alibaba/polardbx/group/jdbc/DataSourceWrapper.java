@@ -47,9 +47,13 @@ import java.util.logging.Logger;
  */
 public class DataSourceWrapper extends AbstractLifecycle implements DataSource {
 
+    /** polardbx_dn_0 */
     protected String storageId;
+    /** dskey_test_single_group#polardbx_dn_0#127.0.0.1-4886#test_single */
     protected final String dbKey;             // 这个DataSource对应的dbKey
+    /** r10w10 */
     protected final String weightStr;         // 权重信息字符串
+    /** Weight[r=10, w=10, p=0, q=0, indexes=null, a=0] */
     protected final Weight weight;            // 权重信息
     protected volatile TAtomDataSource wrappedDataSource; // 被封装的目标DataSource
     protected final int dataSourceIndex;   // DataSourceIndex是指这个DataSource在Group中的位置

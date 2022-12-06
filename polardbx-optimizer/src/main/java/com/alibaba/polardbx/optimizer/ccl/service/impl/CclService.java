@@ -63,6 +63,8 @@ import java.util.concurrent.locks.LockSupport;
 /**
  * @author busu
  * date: 2020/10/29 1:33 下午
+ *
+ * 查询规则；
  */
 public class CclService implements ICclService {
 

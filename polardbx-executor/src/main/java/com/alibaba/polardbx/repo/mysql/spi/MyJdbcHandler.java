@@ -1694,6 +1694,12 @@ public class MyJdbcHandler implements GeneralQueryHandler {
         }
     }
 
+    /**
+     * JDBC 调用 DN 执行 DDL 过程;
+     * @param tableOperation
+     * @return
+     * @throws SQLException
+     */
     public int executeTableDdl(PhyDdlTableOperation tableOperation) throws SQLException {
         long startPrepStmtEnvNano = 0;
         if (enableTaskProfile) {
@@ -1702,8 +1708,19 @@ public class MyJdbcHandler implements GeneralQueryHandler {
         this.groupName = tableOperation.getDbIndex();
         this.closed = false;
 
+        /**
+         * sql: null
+         * param: {1=`tb2_557Z_05`}
+         */
         SqlAndParam sqlAndParam = new SqlAndParam();
         sqlAndParam.param = tableOperation.getParam();
+        /**
+         * CREATE TABLE ? (
+         * 	id INTEGER NOT NULL AUTO_INCREMENT,
+         * 	name VARCHAR(120),
+         * 	PRIMARY KEY (id)
+         * )
+         */
         BytesSql bytesSql = tableOperation.getBytesSql();
         byte[] sqlBytesPrefix = buildSqlPreFix(executionContext);
 
@@ -1717,6 +1734,8 @@ public class MyJdbcHandler implements GeneralQueryHandler {
             int affectRows = 0;
 
             // 可能执行过程有失败，需要释放链接
+            // TGroupDirectConnection
+            // XConnection for XSession sid=669 status=Ready from XClient of X-NIO-Client /127.0.0.1:51967 to /127.0.0.1:32886 to my_polarx@127.0.0.1:32886
             connection = getPhyConnection(executionContext.getTransaction(),
                 ITransaction.RW.WRITE,
                 tableOperation.getDbIndex(), null, null);
@@ -1728,6 +1747,7 @@ public class MyJdbcHandler implements GeneralQueryHandler {
             if (sqlAndParam.param.isEmpty() && !isBatch) {
                 ps = createStatement(connection, executionContext, true);
             } else {
+                // 一般走这里
                 ps = prepareStatement(bytesSql, sqlBytesPrefix, connection, executionContext, null, sqlAndParam.param,
                     false, true, tableOperation);
                 setParameters(ps, sqlAndParam.param);
@@ -2034,6 +2054,12 @@ public class MyJdbcHandler implements GeneralQueryHandler {
             new ExecutionContext.ErrorMessage(code, group, message));
     }
 
+    /**
+     * 结果信息放入 executionContext.extraDatas;
+     *
+     * @param ddl
+     * @param group
+     */
     private void storeSuccessDDLRecords(PhyDdlTableOperation ddl, String group) {
         executionContext.addMessage(ExecutionContext.SuccessMessage,
             new ExecutionContext.ErrorMessage(0, group, "Success"));
@@ -2083,6 +2109,18 @@ public class MyJdbcHandler implements GeneralQueryHandler {
         return currentDbKey;
     }
 
+    /**
+     * 获取 DN 连接；
+     * MyRepository -> DataSource -> Connection;
+     *
+     * @param trans
+     * @param rw
+     * @param groupName
+     * @param grpConnId
+     * @param ds
+     * @return
+     * @throws SQLException
+     */
     protected IConnection getPhyConnection(ITransaction trans, ITransaction.RW rw, String groupName, Long grpConnId,
                                            DataSource ds)
         throws SQLException {

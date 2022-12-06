@@ -17,7 +17,7 @@
               `auto_split_policy` int(11) NOT NULL DEFAULT '0' COMMENT '0:NONE, 1:AUTO_SPLIT, 2:AUTO_SPLIT_HOT_VALUE',
                primary key (`id`),
                unique key `uidx_tgname`(`schema_name`,`tg_name`, `meta_version`),
-               key `db_tg`(`schema_name`, `tg_name`)
+               key `db_tg`(`schema_name`, `tg_name`)   // 主要是 (tg_name, schema_name)
         ) charset=utf8
         ]]></Create>
         <Change><![CDATA[

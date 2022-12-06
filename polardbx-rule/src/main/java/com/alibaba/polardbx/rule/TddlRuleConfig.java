@@ -29,7 +29,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * tddl rule config管理
+ * tddl rule config管理;
+ * 逻辑分表信息？
  *
  * @author jianghang 2013-11-5 下午3:34:36
  * @since 5.0.0
@@ -42,16 +43,23 @@ public abstract class TddlRuleConfig extends AbstractLifecycle implements Lifecy
     protected String unitName;
 
     /**
-     * key = 0(old),1(new),2,3,4... value= version
+     * 规则表存储在这;
+     * key = 0(old),1(new),2,3,4... value= version;
+     * (__VN__,
+     * VirtualTableRoot{MYSQL, Map<String,TableRule>{tb0, TEST_SINGLE_GROUP}});
      */
     protected volatile Map<String, VirtualTableRoot> vtrs = Maps.newLinkedHashMap();
     protected volatile Map<String, String> ruleStrs = Maps.newHashMap();
     protected volatile Map<Integer, String> versionIndex = Maps.newHashMap();
 
+    /**
+     * (__VN__,
+     * (test_000007_group.tb0_uf48 -> tb0, test_single_group.tb0_uf48 -> tb0));
+     **/
     private volatile Map<String, Map<String, Set<String>>> versionedTableNames = Maps.newConcurrentMap();
 
     protected boolean allowEmptyRule = false;
-    // 默认物理的dbIndex，针对allowEmptyRule=true时有效
+    // 默认物理的dbIndex，针对allowEmptyRule=true时有效; TEST_SINGLE_GROUP;
     protected String defaultDbIndex;
     // 规则最后一次变更的时间戳
     protected long lastTimestamp = System.currentTimeMillis();

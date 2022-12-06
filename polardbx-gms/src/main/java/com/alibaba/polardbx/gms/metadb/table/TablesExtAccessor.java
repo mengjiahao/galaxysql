@@ -34,6 +34,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 这个tables_ext 元数据 包含 table 的路由信息;
+ */
 public class TablesExtAccessor extends AbstractAccessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TablesExtAccessor.class);

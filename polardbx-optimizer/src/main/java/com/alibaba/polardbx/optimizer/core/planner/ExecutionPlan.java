@@ -70,6 +70,7 @@ public class ExecutionPlan {
 
     private RelNode plan;
     private final CursorMeta cursorMeta;
+    /** plan 仍然是携带 ast 的; */
     private final SqlNode ast;
     private boolean hitCache;
     private boolean isExplain;

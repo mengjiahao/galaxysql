@@ -32,8 +32,10 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 用来描述一个逻辑表由哪些key-val组成的 <br/>
+ * 用来描述一个逻辑表由哪些key-val元数据组成的 <br/>
  * 屏蔽掉不同的schema存储，存储可能会是本地,diamond或zk schema
+ *
+ * 存储表的元数据信息TableMeta;
  *
  * @author whisper
  */

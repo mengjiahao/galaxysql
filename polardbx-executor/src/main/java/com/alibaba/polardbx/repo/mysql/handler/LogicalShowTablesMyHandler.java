@@ -44,6 +44,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
+ *
+ * show tables 逻辑执行计划;
+ *
  * @author chenmo.cm
  */
 public class LogicalShowTablesMyHandler extends LogicalInfoSchemaQueryHandler {
@@ -108,6 +111,7 @@ public class LogicalShowTablesMyHandler extends LogicalInfoSchemaQueryHandler {
                     throw GeneralUtil.nestedException(e);
                 }
             } else {
+                // 执行这里
                 tables = showFullTables(showNode, infoSchemaContext);
             }
             if (!ConfigDataMode.isFastMock()) {

@@ -25,6 +25,14 @@ import java.util.List;
 import java.util.Map;
 
 
+/**
+ * 有 分库分表 与 DN 实例信息;
+ *
+ * Matrix[name=test@polardbx-polardbx,schemaName=test,
+ * groups=[Group[...,name=TEST_000007_GROUP,appName=test@polardbx-polardbx,schemaName=test,type=MYSQL_JDBC,atoms=[],properties={},unitName=<null>,enforceMaster=false]
+ * ,scaleOutGroups=[],properties={},subMatrixs=[],masterRepoInstMap={127.0.0.1:4886=com.alibaba.polardbx.common.model.RepoInst@263ee66a}];
+ * 其中 4886 是 DN mysql端口;
+ */
 public class Matrix {
 
     private String name;
@@ -35,6 +43,7 @@ public class Matrix {
 
     private Map<String, String> properties = new HashMap();
     private List<Matrix> subMatrixs = new ArrayList();
+    /** DN 实例信息; */
     private Map<String, RepoInst> masterRepoInstMap = new HashMap<String, RepoInst>();
 
     public Matrix() {

@@ -27,6 +27,9 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 基本包括了 DdlJob 的所有信息;
+ */
 public class DdlEngineRecord implements SystemTableRecord {
 
     public DdlEngineRecord() {
@@ -40,8 +43,11 @@ public class DdlEngineRecord implements SystemTableRecord {
     public long jobId;
     public String ddlType;
     public String schemaName;
+    // 比如表名 tb1
     public String objectName;
+    // 30.221.99.90:8527
     public String responseNode;
+    // 30.221.99.90:8527
     public String executionNode;
     public String state;
     public String resources;

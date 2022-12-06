@@ -59,6 +59,18 @@ public abstract class BasePhyDdlTask extends BaseDdlTask {
 
     private final static Logger LOG = SQLRecorderLogger.ddlEngineLogger;
 
+    /**
+     * 单库单表 create table：
+     * PhysicalPlan{table: tb1, sql: CREATE TABLE ? (	id INTEGER NOT NULL,	name VARCHAR(120),	_drds_implicit_id_ bigint AUTO_INCREMENT,	PRIMARY KEY (_drds_implicit_id_)), topology: {TEST_SINGLE_GROUP=[[tb1_WT7R]]};
+     * exceptionAction: TRY_RECOVERY_THEN_ROLLBACK;
+     *
+     * 分库分表 create table:
+     * PhysicalPlan{table: tb2, sql: CREATE TABLE ? (	id INTEGER NOT NULL AUTO_INCREMENT,	name VARCHAR(120),	PRIMARY KEY (id)), topology: {TEST_000003_GROUP=[[tb2_557Z_07], [tb2_557Z_06]], TEST_000002_GROUP=[[tb2_557Z_04], [tb2_557Z_05]], TEST_000006_GROUP=[[tb2_557Z_12], [tb2_557Z_13]], TEST_000001_GROUP=[[tb2_557Z_02], [tb2_557Z_03]], TEST_000004_GROUP=[[tb2_557Z_08], [tb2_557Z_09]], TEST_000000_GROUP=[[tb2_557Z_00], [tb2_557Z_01]], TEST_000005_GROUP=[[tb2_557Z_10], [tb2_557Z_11]], TEST_000007_GROUP=[[tb2_557Z_14], [tb2_557Z_15]]};
+     * exceptionAction: TRY_RECOVERY_THEN_ROLLBACK;
+     *
+     * 单库单表 drop table:
+     * PhysicalPlan{table: tb3, sql: DROP TABLE ?, topology: {TEST_SINGLE_GROUP=[[tb3_H2NL]]}
+     */
     protected PhysicalPlanData physicalPlanData;
 
     public BasePhyDdlTask(String schemaName, PhysicalPlanData physicalPlanData) {
@@ -90,6 +102,8 @@ public abstract class BasePhyDdlTask extends BaseDdlTask {
 
     /**
      * Get physical plans to execute.
+     *
+     * 分库分表（8 * 2）会返回16个规则：(15, rel#448:PhyDdlTableOperation.DRDS.[].any());
      */
     protected List<RelNode> getPhysicalPlans(ExecutionContext executionContext) {
         return DdlJobDataConverter.convertToPhysicalPlans(physicalPlanData, executionContext);
@@ -111,6 +125,16 @@ public abstract class BasePhyDdlTask extends BaseDdlTask {
         return relNodes;
     }
 
+    /**
+     *
+     * 单库单表:
+     * inputs: rel#284:PhyDdlTableOperation.DRDS.[].any();
+     *
+     * 分库分表:
+     * inputs: (15, rel#448:PhyDdlTableOperation.DRDS.[].any());
+     *
+     * @param inputs 单库单表只有1条规则，分库分表有 (dbCount * tableCount) 条规则；
+     */
     protected void executePhyDdl(List<RelNode> inputs, ExecutionContext ec) {
         if (CollectionUtils.isEmpty(inputs)) {
             return;
@@ -121,6 +145,7 @@ public abstract class BasePhyDdlTask extends BaseDdlTask {
             StringUtils.substring(TStringUtil.quoteString(this.physicalPlanData.toString()), 0, 5000)));
 
         ExecutionContext executionContext = ec.copy();
+        // PhyDdlExecutionRecord 记录完成状态
         PhyDdlExecutionRecord phyDdlExecutionRecord = new PhyDdlExecutionRecord(jobId, taskId, inputs.size());
         executionContext.setPhyDdlExecutionRecord(phyDdlExecutionRecord);
         executionContext.setExtraDatas(new HashMap<>());
@@ -278,8 +303,18 @@ public abstract class BasePhyDdlTask extends BaseDdlTask {
         return true;
     }
 
+    /**
+     *
+     * DN 实例 并行执行 DDL;
+     *
+     * @param inputs
+     * @param inputCursors
+     * @param exceptions
+     * @param executionContext
+     */
     protected void executeConcurrently(List<RelNode> inputs, List<Cursor> inputCursors, List<Throwable> exceptions,
                                        ExecutionContext executionContext) {
+        // 单库单表/分库分表: QueryConcurrencyPolicy=INSTANCE_CONCURRENT
         QueryConcurrencyPolicy concurrencyPolicy = getConcurrencyPolicy(executionContext);
         // Execute with the specified policy for sharding table
         if (concurrencyPolicy == QueryConcurrencyPolicy.INSTANCE_CONCURRENT) {

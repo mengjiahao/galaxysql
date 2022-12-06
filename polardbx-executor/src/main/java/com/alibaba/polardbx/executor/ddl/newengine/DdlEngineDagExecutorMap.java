@@ -32,6 +32,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.alibaba.polardbx.executor.ddl.newengine.sync.DdlResponse.Response;
 
+/**
+ * 单例模式;
+ * 正在本节点执行的 DdlJob 需要加入到 内存全局 DDL_DAG_EXECUTOR_MAP;
+ */
 public class DdlEngineDagExecutorMap {
 
     private static final Logger LOGGER = SQLRecorderLogger.ddlEngineLogger;
@@ -50,6 +54,7 @@ public class DdlEngineDagExecutorMap {
     /**
      * make sure:
      * never override ddl job in DDL_DAG_EXECUTOR_MAP
+     * 加入 (jobId, DdlEngineDagExecutor) 到 DDL_DAG_EXECUTOR_MAP[schemaName];
      */
     static boolean restore(String schemaName, long jobId, ExecutionContext executionContext) {
         if (contains(schemaName, jobId)) {

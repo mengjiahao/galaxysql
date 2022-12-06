@@ -436,7 +436,9 @@ public abstract class FrontendConnection extends AbstractConnection {
         MySQLMessage mm = new MySQLMessage(data);
         mm.position(5);
 
+        // UTF-8
         String javaCharset = CharsetUtil.getJavaCharset(charset);
+        // UTF-8
         Charset cs = null;
         if (Charset.isSupported(javaCharset)) {
             try {
@@ -666,6 +668,11 @@ public abstract class FrontendConnection extends AbstractConnection {
         }
     }
 
+    /**
+     * 处理SQL请求的入口;
+     * 在线程 ServerExecutor-bucket-1-18-thread-13 中;
+     * @param data
+     */
     @Override
     public void handleData(byte[] data) {
 

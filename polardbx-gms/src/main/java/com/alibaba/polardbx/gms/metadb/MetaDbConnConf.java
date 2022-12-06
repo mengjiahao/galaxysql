@@ -18,6 +18,7 @@ package com.alibaba.polardbx.gms.metadb;
 
 /**
  * @author chenghui.lch
+ * MetaDB 连接池配置;
  */
 public class MetaDbConnConf {
 

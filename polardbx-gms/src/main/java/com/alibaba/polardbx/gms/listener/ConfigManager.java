@@ -22,6 +22,16 @@ import java.util.Map;
 
 /**
  * @author chenghui.lch
+ *
+ *
+ * caller -> register(dataId);
+ * bindListener(dataId) -> ConfigListener;
+ *
+ * 使用:
+ * // Register new table data id.
+ * CONFIG_MANAGER.register(tableDataId, metaDbConn);
+ * // update table list data id
+ * CONFIG_MANAGER.notify(tableListDataId, metaDbConn);
  */
 public interface ConfigManager {
 

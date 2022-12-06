@@ -96,6 +96,11 @@ public class CommonMetaChanger {
         return null;
     }
 
+    /**
+     * 同步 config_listener;
+     *
+     * @param dataId
+     */
     public static void sync(String dataId) {
         try {
             // Sync to trigger immediate call of registered listener associated with the dataId.

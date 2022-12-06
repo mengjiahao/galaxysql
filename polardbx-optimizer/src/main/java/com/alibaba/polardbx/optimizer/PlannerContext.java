@@ -190,6 +190,7 @@ public class PlannerContext implements Context, PlannerContextWithParam {
         return ret;
     }
 
+    /** 重新生成 PlannerContext，PlannerContext 包装有 ExecutionContext; */
     public static PlannerContext fromExecutionContext(ExecutionContext context) {
         return new PlannerContext(context,
             SqlKind.NONE,

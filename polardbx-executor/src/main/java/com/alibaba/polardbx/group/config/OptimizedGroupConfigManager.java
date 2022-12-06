@@ -91,6 +91,10 @@ public class OptimizedGroupConfigManager extends AbstractLifecycle implements Li
      */
     private boolean createTAtomDataSource = true;
 
+    /**
+     * dskey_test_single_group#polardbx_dn_0#127.0.0.1-4886#test_single ->
+     * {DataSourceWrapper@26953} "DataSourceWrapper{dataSourceKey=dskey_test_single_group#polardbx_dn_0#127.0.0.1-4886#test_single, dataSourceIndex=0,weight=Weight[r=10, w=10, p=0, q=0, indexes=null, a=0]}"；
+     **/
     private volatile Map<String/* Atom dbIndex */, DataSourceWrapper/* Wrapper过的Atom DS */> dataSourceWrapperMap =
         new HashMap<>();
 

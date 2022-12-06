@@ -24,6 +24,9 @@ import com.alibaba.polardbx.executor.ddl.job.validator.TableValidator;
 import com.alibaba.polardbx.optimizer.context.ExecutionContext;
 import lombok.Getter;
 
+/**
+ * 校验要删除的table要存在;
+ */
 @Getter
 @TaskName(name = "DropTableValidateTask")
 public class DropTableValidateTask extends BaseValidateTask {

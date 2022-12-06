@@ -96,12 +96,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * 注意 PlanCache 也是单例，是共享的;
+ *
  * @author lingce.ldm 2017-11-22 14:38
  */
 public final class PlanCache {
 
     private static final Logger logger = LoggerFactory.getLogger(PlanCache.class);
 
+    /** LocalCache$LocalManualCache;
+     * 相当于上了 hash锁的 hashtable;
+     **/
     private Cache<CacheKey, ExecutionPlan> cache;
 
     private static final int MAX_ERROR_COUNT = 16;
@@ -185,9 +190,11 @@ public final class PlanCache {
                                        final ExecutionContext ec,
                                        boolean testMode) throws ExecutionException {
         final AtomicBoolean beCached = new AtomicBoolean(true);
+        /** 注意这里会使用 schema */
         CacheKey cacheKey = getCacheKey(schema, sqlParameterized, ec, testMode);
         final Callable<ExecutionPlan> valueLoader = () -> {
             ContextParameters contextParameters = new ContextParameters(testMode);
+            /** 执行 sql parse */
             SqlNodeList astList = new FastsqlParser()
                 .parse(ByteString.from(sqlParameterized.getSql()), params, contextParameters, ec);
             // parameterizedSql can not be a multiStatement.
@@ -200,6 +207,7 @@ public final class PlanCache {
             } else {
                 // NOTE: BuildFinalPlanVisitor will change ast, so need compute tableSet in advance
                 Set<Pair<String, String>> tableSet = PlanManagerUtil.getTableSetFromAst(ast);
+                /** 注意这里会使用 schema */
                 int tableSetHashCode =
                     PlanManagerUtil.computeTablesHashCode(tableSet, schema, ec);
                 PlannerContext plannerContext = PlannerContext.fromExecutionContext(ec);
@@ -276,7 +284,12 @@ public final class PlanCache {
         return true;
     }
 
+    /**
+     * 清空所有的 plan cache;
+     * 无锁保护，一个个key invalid（内部remove）;
+     */
     public void invalidate() {
+        // entrySet 会获取快照？
         for (Map.Entry<CacheKey, ExecutionPlan> entry : cache.asMap().entrySet()) {
             CacheKey cacheKey = entry.getKey();
             ExecutionPlan executionPlan = entry.getValue();
@@ -288,6 +301,10 @@ public final class PlanCache {
         cache.invalidateAll();
     }
 
+    /**
+     * cache 只有 invalid 方法;
+     * @param schema
+     */
     public void invalidateBySchema(String schema) {
         for (Map.Entry<CacheKey, ExecutionPlan> entry : cache.asMap().entrySet()) {
             CacheKey cacheKey = entry.getKey();
@@ -299,6 +316,7 @@ public final class PlanCache {
 
     /**
      * this implementation of this method will affect sql filter by query.
+     *
      */
     public static CacheKey getCacheKey(String schema,
                                        SqlParameterized sqlParameterized, ExecutionContext ec,
@@ -319,6 +337,7 @@ public final class PlanCache {
             } else {
                 versionInfo.append(',');
             }
+            /** 注意这里从 ExecutionContext 中尝试获取了 TableMeta 元数据 */
             TableMeta table = ec
                 .getSchemaManager(t.getKey()).getTableWithNull(t.getValue());
             if (table != null) {
@@ -349,6 +368,9 @@ public final class PlanCache {
         }
     }
 
+    /**
+     * CacheKey 包含 (schema, parameterizedSql, version, metas, parameters);
+     */
     public static class CacheKey {
         private static final long NO_TYPE_DIGEST = Long.MIN_VALUE;
 

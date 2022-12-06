@@ -38,6 +38,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author chenghui.lch
+ *
+ * 从 metadb inst_config表 获取配置属性到 propertiesInfoMap, register或reload时触发 instConfigReceiver/dbConfigReceiverMap apply;
  */
 public class MetaDbInstConfigManager extends AbstractLifecycle implements InstConfigManager {
 
@@ -99,6 +101,11 @@ public class MetaDbInstConfigManager extends AbstractLifecycle implements InstCo
         super.doDestroy();
     }
 
+    /**
+     * 注册到 dbConfigReceiverMap，并 apply(this.propertiesInfoMap);
+     * @param dbName
+     * @param receiver
+     */
     @Override
     public void registerDbReceiver(String dbName, InstConfigReceiver receiver) {
         synchronized (this) {
@@ -127,6 +134,9 @@ public class MetaDbInstConfigManager extends AbstractLifecycle implements InstCo
 
     }
 
+    /**
+     * 从 metadb inst_config表 获取配置属性到 propertiesInfoMap, 并触发 instConfigReceiver/dbConfigReceiverMap apply;
+     */
     @Override
     public void reloadInstConfig() {
 
@@ -156,6 +166,7 @@ public class MetaDbInstConfigManager extends AbstractLifecycle implements InstCo
                 }
 
                 // handle conn pool config
+                // 更新 CN-DN 之间连接池配置;
                 processConnPoolConfig(this.propertiesInfoMap);
 
             } catch (Throwable ex) {
@@ -168,6 +179,11 @@ public class MetaDbInstConfigManager extends AbstractLifecycle implements InstCo
         ConnPoolConfigManager.getInstance().refreshConnPoolConfig(props);
     }
 
+    /**
+     * 从系统表 inst_config表 获取配置属性;
+     * @param conn
+     * @return
+     */
     public static Properties loadPropertiesFromMetaDbConn(Connection conn) {
 
         Properties props = new Properties();

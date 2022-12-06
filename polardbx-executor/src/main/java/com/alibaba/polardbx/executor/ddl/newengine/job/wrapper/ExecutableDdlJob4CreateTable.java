@@ -26,6 +26,10 @@ import com.alibaba.polardbx.executor.ddl.job.task.cdc.CdcDdlMarkTask;
 import com.alibaba.polardbx.executor.ddl.newengine.job.ExecutableDdlJob;
 import lombok.Data;
 
+/**
+ * 指明 CreateTable DdlJob 包含的 DdlTask;
+ * 包含 DdlJob 执行的 DAG;
+ */
 @Data
 public class ExecutableDdlJob4CreateTable extends ExecutableDdlJob {
 

@@ -32,8 +32,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
+/**
+ * 拥有 DdlTask 的 DAG 图;
+ */
 public abstract class AbstractDdlJob implements DdlJob {
 
+    /**
+     * DAG(Vertexes: [1536895958481108992, 1536895958451748864, 1536895958363668480, 1536895958418194433, 1536895958523052032, 1536895958418194432, 1536895958170730497, 1536895958418194434], Edges: [com.alibaba.polardbx.executor.ddl.newengine.dag.DirectedAcyclicGraph$Edge@bad32d77, com.alibaba.polardbx.executor.ddl.newengine.dag.DirectedAcyclicGraph$Edge@498f6407, com.alibaba.polardbx.executor.ddl.newengine.dag.DirectedAcyclicGraph$Edge@9842b6bb, com.alibaba.polardbx.executor.ddl.newengine.dag.DirectedAcyclicGraph$Edge@e660171b, com.alibaba.polardbx.executor.ddl.newengine.dag.DirectedAcyclicGraph$Edge@c57a1196, com.alibaba.polardbx.executor.ddl.newengine.dag.DirectedAcyclicGraph$Edge@eac710eb, com.alibaba.polardbx.executor.ddl.newengine.dag.DirectedAcyclicGraph$Edge@b7aa9245]);
+     */
     protected final DirectedAcyclicGraph taskGraph = DirectedAcyclicGraph.create();
     protected final Set<String> excludeResources = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
     protected final Set<String> sharedResources = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
@@ -126,6 +132,12 @@ public abstract class AbstractDdlJob implements DdlJob {
         }
     }
 
+    /**
+     * 线性: a->b->c->d;
+     * @param predecessor A specified predecessor task
+     * @param taskList Sequential tasks appended
+     * @return
+     */
     @Override
     public DdlJob addSequentialTasksAfter(DdlTask predecessor, List<DdlTask> taskList) {
         if (predecessor == null || CollectionUtils.isEmpty(taskList)) {

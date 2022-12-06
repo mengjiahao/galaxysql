@@ -52,6 +52,9 @@ import static com.alibaba.polardbx.common.ddl.newengine.DdlConstants.SQLSTATE_TA
 import static com.alibaba.polardbx.common.ddl.newengine.DdlConstants.SQLSTATE_UNKNOWN_TABLE;
 import static com.alibaba.polardbx.common.ddl.newengine.DdlConstants.SQLSTATE_VIOLATION;
 
+/**
+ * 拥有  phyDdlExecutionRecord 与 phyObjectTaskQueue；
+ */
 public class GenericPhyObjectRecorder {
 
     protected static final Logger LOGGER = SQLRecorderLogger.ddlEngineLogger;
@@ -77,6 +80,7 @@ public class GenericPhyObjectRecorder {
         if (physicalPlan instanceof PhyDdlTableOperation) {
             this.physicalDdlPlan = (PhyDdlTableOperation) physicalPlan;
             objectSchema = physicalDdlPlan.getSchemaName();
+            // (TEST_SINGLE_GROUP, `tb1_Nhdu`)
             Pair<String, String> phyTablePair = DdlHelper.genPhyTablePair(physicalDdlPlan, ddlContext);
             groupName = phyTablePair.getKey();
             phyTableName = phyTablePair.getValue();
@@ -120,6 +124,9 @@ public class GenericPhyObjectRecorder {
         return checkIfPhyObjectDone();
     }
 
+    /**
+     * 标记 物理 DdlTask 已经完成;
+     */
     public void recordDone() {
         if (physicalDdlPlan == null) {
             return;
@@ -134,6 +141,10 @@ public class GenericPhyObjectRecorder {
         }
     }
 
+    /**
+     * 检查 executionContext.extraDatas 的 FailedMessage;
+     * @return
+     */
     protected boolean isCurrentPlanSuccessful() {
         boolean successful = true;
 
@@ -173,13 +184,21 @@ public class GenericPhyObjectRecorder {
     }
 
     protected void recordObjectNormal() {
+        // TEST_SINGLE_GROUP:`tb1_yDUy`
         String phyObjectInfo = genPhyObjectInfo();
         recordObjectNormal(phyObjectInfo, true);
     }
 
+    /**
+     * 标记 物理 DdlTask 已经完成;
+     *
+     * @param phyObjectInfo
+     * @param afterPhyDdl
+     */
     protected void recordObjectNormal(String phyObjectInfo, boolean afterPhyDdl) {
         if (executionContext.getParamManager().getBoolean(ConnectionParams.ENABLE_ASYNC_PHY_OBJ_RECORDING) &&
             phyObjectTaskQueue != null) {
+            // 一般走这里
             requestPhyObjectRecording(() -> {
                 addPhyObjectDone(phyObjectInfo, afterPhyDdl);
                 return null;
@@ -213,6 +232,11 @@ public class GenericPhyObjectRecorder {
             phyDdlExecutionRecord, phyObjectInfo);
     }
 
+    /**
+     * 加入到 phyObjectTaskQueue；
+     *
+     * @param supplier
+     */
     private void requestPhyObjectRecording(Supplier<?> supplier) {
         final PhyObjectTask phyObjectTask = new PhyObjectTask(phyDdlExecutionRecord);
 
@@ -256,6 +280,7 @@ public class GenericPhyObjectRecorder {
     // A subclass may need to override the following methods.
 
     protected boolean checkIfPhyObjectDone() {
+        // TEST_SINGLE_GROUP:`tb1_yDUy`
         String phyObjectInfo = genPhyObjectInfo();
         return phyDdlExecutionRecord.getPhyObjectsDone().contains(phyObjectInfo);
     }
@@ -264,6 +289,11 @@ public class GenericPhyObjectRecorder {
         return false;
     }
 
+    /**
+     * 标记 phyObjectsDone
+     * @param phyObjectInfo
+     * @param afterPhyDdl
+     */
     protected void addPhyObjectDone(String phyObjectInfo, boolean afterPhyDdl) {
         phyDdlExecutionRecord.addPhyObjectDone(phyObjectInfo);
         if (afterPhyDdl) {

@@ -32,7 +32,9 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
- * The complete partition definition of one logical table
+ * The complete partition definition of one logical table;
+ *
+ * Partition table 的信息;
  *
  * @author chenghui.lch
  */
@@ -105,6 +107,8 @@ public class PartitionInfo {
      * tableType=3: broadcast table
      * tableType=4: gsi single table
      * tableType=5: gsi broadcast table
+     *
+     * 注意带 GSI 全局索引的表是单独定义的;
      */
     protected PartitionTableType tableType;
 

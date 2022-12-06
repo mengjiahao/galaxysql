@@ -41,8 +41,15 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
 
+/**
+ * meta JDBC SQL操作;
+ */
 public class MetaDbUtil {
 
+    /**
+     * 获取 metadb 的JDBC 连接;
+     * @return
+     */
     public static Connection getConnection() {
         if (MetaDbDataSource.getInstance() == null) {
             throw new TddlRuntimeException(ErrorCode.ERR_GMS_GENERIC, "acquire meta db error");
@@ -80,6 +87,15 @@ public class MetaDbUtil {
         return query(selectSql, null, clazz, connection);
     }
 
+    /**
+     *
+     * @param selectSql
+     * @param clazz 继承SystemTableRecord, 实现fill(ResultSet接口)
+     * @param connection
+     * @param <T>
+     * @return 返回 List<clazz>; SQL -> ResultSet -> List<clazz>;
+     * @throws Exception
+     */
     public static <T extends SystemTableRecord>
     List<T> query(String selectSql, Map<Integer, ParameterContext> params, Class<T> clazz, Connection connection)
         throws Exception {

@@ -31,6 +31,7 @@ public class ReadWriteLockRecord implements SystemTableRecord {
 
     public String schemaName;
     public String owner;
+    /** resource 上锁的库名或表名等; */
     public String resource;
     public String type;
     public Timestamp gmtCreated;

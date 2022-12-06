@@ -16,6 +16,9 @@
 
 package com.alibaba.polardbx.common;
 
+/**
+ * ThreadLocal<String>;
+ */
 public class DefaultSchema {
 
     private static ThreadLocal<String> DEFAULT_SCHEMA_NAME = new ThreadLocal<>();

@@ -56,6 +56,7 @@ public class MdlManagerStampedTest {
 
     @Before
     public void setUp() throws Exception {
+        // MdlManagerStamped 是单例
         mdlManager = MdlManagerStamped.getInstance(schema);
         tableSchemaMap.put(tableName, 0L);
     }
@@ -80,7 +81,7 @@ public class MdlManagerStampedTest {
                 frontConn.setMdlContext(context);
 
                 final Long trxId = 9527L;
-                // get lock
+                /** 通过 MdlContext 对 tableName 上写锁 */
                 final MdlTicket ticket = context.acquireLock(writeRequest(trxId, tableName));
 
                 // update schema version
@@ -117,7 +118,7 @@ public class MdlManagerStampedTest {
 
                 int connCount = 0;
                 while (connCount++ < CONN_COUNT) {
-                    // connect to DRDS
+                    // connect to DRDS， frontConn 不同
                     final FrontConnection frontConn = new FrontConnection(g.nextId());
 
                     final MdlContext context = mdlManager.addContext(frontConn.getId());
@@ -132,6 +133,7 @@ public class MdlManagerStampedTest {
                         // begin transaction
                         MdlTicket ticket = null;
                         for (int i = 0; i < stmtCountInTrx; i++) {
+                            /** 对 tableName 读锁，不同 stmt 返回同一个 */
                             final MdlTicket newTicket = context.acquireLock(readRequest(trxId, tableName));
 
                             // grant ticket once for a table in a transaction
@@ -155,6 +157,7 @@ public class MdlManagerStampedTest {
                             final Long schemaVersion2 = tableSchemaMap.get(tableName);
 
                             final long versionChange = schemaVersion2 - schemaVersion1;
+                            /** 上了读锁后 versionChange 还能等于 1 不会，经测试有读写锁保护不会等于1；*/
                             Assert.assertTrue(versionChange >= 0 && versionChange <= 1);
                         }
 
@@ -209,6 +212,9 @@ public class MdlManagerStampedTest {
             MdlDuration.MDL_TRANSACTION);
     }
 
+    /**
+     * FrontConnection 有 MdlContext；
+     */
     private static class FrontConnection {
 
         private final long id;

@@ -59,7 +59,9 @@ public class StorageInfoManager extends AbstractLifecycle {
 
     private final Map<String, StorageInfo> storageInfos;
     private final TopologyHandler topologyHandler;
+    // true
     private volatile boolean supportXA;
+    // true
     private volatile boolean supportTso;
     private volatile boolean supportTsoHeartbeat;
     private volatile boolean supportPurgeTso;

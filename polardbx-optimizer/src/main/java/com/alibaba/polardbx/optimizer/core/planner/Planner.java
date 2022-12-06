@@ -274,7 +274,15 @@ public class Planner {
         return plan(sql, sqlType, sqlParameterized, executionContext, astList, true);
     }
 
+    /**
+     * 这里开始创建 plan;
+     *
+     * @param sql
+     * @param executionContext
+     * @return
+     */
     public ExecutionPlan plan(ByteString sql, ExecutionContext executionContext) {
+        /** 注意到这里 ExecutionContext AdHoc 也没有 schemaManagers 的信息 */
         if (executionContext.isExecutingPreparedStmt()) {
             PreparedStmtCache preparedStmtCache = executionContext.getPreparedStmtCache();
             Preconditions.checkState(preparedStmtCache != null, "Prepared statement cache does not exist");
@@ -300,10 +308,12 @@ public class Planner {
     }
 
     /**
-     * 经过各种预处理后生成执行计划
+     * 经过各种预处理后生成执行计划;
+     * parse 进行 sql 参数化;
      */
     private ExecutionPlan planAfterProcessing(ByteString sql, ExecutionContext executionContext) {
         ByteString afterProcessSql = removeSpecialHint(sql, executionContext);
+        /** sql参数化处理, 返回的是 SQL解析后的 MysqlSqlCreateTableStatement */
         SqlParameterized parameterized = parameterize(afterProcessSql, executionContext);
         SqlType sqlType = parameterized.getAst().getSqlType();
 
@@ -347,6 +357,14 @@ public class Planner {
         return parameterize(afterProcessSql, executionContext, false);
     }
 
+    /**
+     * 参数化 SQL;
+     *
+     * @param afterProcessSql
+     * @param executionContext
+     * @param isPrepare
+     * @return
+     */
     private SqlParameterized parameterize(ByteString afterProcessSql,
                                           ExecutionContext executionContext,
                                           boolean isPrepare) {
@@ -425,6 +443,7 @@ public class Planner {
     public ExecutionPlan doBuildPlan(SqlNodeList astList,
                                      ExecutionContext executionContext) {
         SqlNode ast = astList.get(0);
+        // (null, tb1)
         Set<Pair<String, String>> tableSet = PlanManagerUtil.getTableSetFromAst(ast);
 
         if (ast.getKind().belongsTo(SqlKind.DML)) {
@@ -435,6 +454,7 @@ public class Planner {
             // handle plan hint first
             plan = buildPlanWithHint(ast, executionContext);
         } else {
+            // PlannerContext 与 executionContext 类似
             PlannerContext plannerContext = PlannerContext.fromExecutionContext(executionContext);
             plan = getPlan(ast, plannerContext);
             plan.setExplain(executionContext.getExplain() != null);
@@ -447,12 +467,14 @@ public class Planner {
     }
 
     /**
-     * build plan for parameterized sql (no plan cache)
+     * build plan for parameterized sql (no plan cache).
+     * 创建 可执行计划;
      */
     public ExecutionPlan doBuildPlan(SqlParameterized sqlParameterized, ExecutionContext executionContext) {
         // parse
         SqlNodeList astList;
         if (executionContext.getParamManager().getBoolean(ConnectionParams.ENABLE_PARAMETER_PLAN)) {
+            // 执行这里
             astList = new FastsqlParser()
                 .parse(sqlParameterized.getSql(), sqlParameterized.getParameters(), executionContext);
         } else {
@@ -786,6 +808,7 @@ public class Planner {
             ConnectionParams.ENABLE_STORAGE_TRIGGER);
 
         // validate
+        /**  注意 SqlConverter 内部有 CalciteCatalogReader, 会给plan增加元数据信息 **/
         SqlConverter converter =
             SqlConverter.getInstance(plannerContext.getSchemaName(), plannerContext.getExecutionContext());
 
@@ -793,12 +816,18 @@ public class Planner {
         initConverterAutoPartFlag(plannerContext, enableStorageTrigger, converter);
 
         SqlNode validatedNode = converter.validate(ast);
-        // sqlNode to relNode
+
+        /** sqlNode to Calcite relNode
+         * relNode 内部有 VolcanoPlanner;
+         * */
         RelNode relNode = converter.toRel(validatedNode, plannerContext);
 
         // relNode to drdsRelNode
+        // 比如: CreateTable -> LogicalCreateTable
         ToDrdsRelVisitor toDrdsRelVisitor = new ToDrdsRelVisitor(validatedNode, plannerContext);
+        /** 注意这里会根据元数据进行遍历校验，比如 LogicalProject */
         RelNode drdsRelNode = relNode.accept(toDrdsRelVisitor);
+
         if (plannerContext.getSqlKind().belongsTo(QUERY) && InstConfUtil.getBool(SPM_ENABLE_PQO)) {
             Map<LogicalTableScan, RexNode> predicateMap = getRexNodeTableMap(drdsRelNode);
             if (predicateMap != null && !predicateMap.values().stream()
@@ -828,7 +857,7 @@ public class Planner {
                         .getCatalog());
             directMode = ExecutionPlan.DirectMode.NONE;
         } else {
-            // optimize
+            /** optimize */
             boolean directByTable = shouldDirectByTable(toDrdsRelVisitor, validatedNode, plannerContext);
             if (directByTable) {
                 optimizedNode = unoptimizedNode;
@@ -838,6 +867,7 @@ public class Planner {
                 if (canDirectByShardingKey(optimizedNode)) {
                     directMode = ExecutionPlan.DirectMode.SHARDING_KEY_DIRECT;
                 } else {
+                    // DDL 是 NONE？
                     directMode = ExecutionPlan.DirectMode.NONE;
                 }
             }
@@ -940,7 +970,8 @@ public class Planner {
     }
 
     /**
-     * 是否为分片键点查（主键）
+     * 是否为分片键点查（主键）;
+     * @param optimizedNode 需要是 LogicalView 且不是 LogicalModifyView;
      */
     private boolean canDirectByShardingKey(RelNode optimizedNode) {
         if (!(optimizedNode instanceof LogicalView) || optimizedNode instanceof LogicalModifyView) {
@@ -1030,6 +1061,12 @@ public class Planner {
         return optimize(input, plannerContext);
     }
 
+    /**
+     * 通过 Calcite 进行 优化;
+     * @param input
+     * @param plannerContext
+     * @return
+     */
     private RelNode sqlRewriteAndPlanEnumerate(RelNode input, PlannerContext plannerContext) {
         plannerContext.getCalcitePlanOptimizerTrace()
             .ifPresent(x -> {
@@ -1513,6 +1550,19 @@ public class Planner {
         return false;
     }
 
+    /**
+     * 创建 可执行计划;
+     *
+     * @param originalRowType
+     * @param unoptimizedNode
+     * @param optimizedNode
+     * @param validatedNode DDLSqlSelect (SELECT `tb1`.`id`, `tb1`.`name` FROM `tb1`), 已经初步解析了元数据
+     * @param converter
+     * @param toDrdsRelVisitor
+     * @param plannerContext
+     * @param directPlanMode
+     * @return
+     */
     private ExecutionPlan constructExecutionPlan(RelDataType originalRowType,
                                                  RelNode unoptimizedNode,
                                                  RelNode optimizedNode,
@@ -1561,6 +1611,7 @@ public class Planner {
         }
         List<TableMeta> tableMetas = null;
         if (tableNames != null && tableNames.size() > 0) {
+            /** 从 OptimizerContext[schema].GmsTableMetaManager cache 里拿元数据 */
             SchemaManager schemaManager =
                 OptimizerContext.getContext(plannerContext.getSchemaName()).getLatestSchemaManager();
             try {
@@ -1635,6 +1686,8 @@ public class Planner {
         needInitPlanShard = needInitPlanShard && !needSkipInitPlanShardInfo(plan);
 
         if (needInitPlanShard) {
+            // DDL 走这里
+
             switch (kind) {
             case SELECT:
             case UNION:
@@ -1708,7 +1761,9 @@ public class Planner {
     }
 
     /**
-     * 查询的所有表都是单表,直接填充一个 LogicalView 返回即可
+     * 查询的所有表都是单表,直接填充一个 LogicalView 返回即可；
+     *
+     * rel#187:LogicalView.NONE.[].any(table=[test, tb1],tableNames=[tb1],pushDownOpt=com.alibaba.polardbx.optimizer.core.rel.PushDownOpt@2472e6d8,schemaName=test,partitions=[],flashback=null)；
      */
     private RelNode buildDirectPlan(LogicalView logicalView, RelNode relNode, SqlNode sqlNode,
                                     ToDrdsRelVisitor toDrdsRelVisitor, PlannerContext pc) {
@@ -2032,6 +2087,8 @@ public class Planner {
 
         ExecutionPlan executionPlan;
         if (PlanManagerUtil.useSpm(sqlParameterized, executionContext)) {
+            /** SPM 是 SQL Plan Management，有SQL优化处理 */
+            // AhHoc DQL/DQL 走这里
             if (executionContext.isEnableFeedBackWorkload()) {
                 // plan management with feedback
                 executionPlan = PlaceHolderExecutionPlan.INSTANCE;
@@ -2051,6 +2108,7 @@ public class Planner {
                 executionPlan = doBuildPlan(sqlParameterized, executionContext);
             }
         } else {
+            // DDL第1次创建走这里
             executionPlan = Planner.getInstance().doBuildPlan(sqlParameterized, executionContext);
         }
 
@@ -2064,6 +2122,7 @@ public class Planner {
             executionPlan.setDbIndexAndTableName(dbIndexAndTableName);
         } else {
             // post planner
+            /** 这里进行 optimize 优化; */
             if (executionPlan.isUsePostPlanner()) {
                 ExecutionPlan executionPlanForPostPlanner = executionPlan.copy(executionPlan.getPlan());
                 executionPlan = PostPlanner.getInstance().optimize(executionPlanForPostPlanner, executionContext);

@@ -85,13 +85,33 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
- * 一个table的描述，包含主键信息/字段信息/索引信息等，暂时不考虑外键/约束键，目前没意义
+ * 一个table的描述，包含主键信息/字段信息/索引信息等，暂时不考虑外键/约束键，目前没意义;
+ * 内存态 table schame 描述;
+ *
+ * 单库单表:
+ * {tb0=TableMeta[digest=test.tb0#version:5,tableGroupDigest=<null>,schemaDigest=[schema:test#version:0#0, schema:test#version:0#1, schema:test#version:0#2, schema:test#version:0#3, schema:test#version:0#4, schema:test#version:0#5, schema:test#version:0#6, schema:test#version:0#7, schema:test#version:0#8, schema:test#version:0#9, schema:test#version:0#10, schema:test#version:0#11, schema:test#version:0#12, schema:test#version:0#13, schema:test#version:0#14, schema:test#version:0#15, schema:test#version:0#16, schema:test#version:0#17, schema:test#version:0#18, schema:test#version:0#19, schema:test#version:0#20, schema:test#version:0#21, schema:test#version:0#22, schema:test#version:0#23, schema:test#version:0#24, schema:test#version:0#25, schema:test#version:0#26, schema:test#version:0#27, schema:test#version:0#28, schema:test#version:0#29, schema:test#version:0#30, schema:test#version:0#31, schema:test#version:0#32, schema:test#version:0#33, schema:test#version:0#34, schema:test#version:0#35, schema:test#version:0#36, schema:test#version:0#37, schema:test#version:0#38, schema:test#version:0#39, schema:test#version:0#40, schema:test#version:0#41, schema:test#version:0#42, schema:test#version:0#43, schema:test#version:0#44, schema:test#version:0#45, schema:test#version:0#46, schema:test#version:0#47, schema:test#version:0#48, schema:test#version:0#49, schema:test#version:0#50, schema:test#version:0#51, schema:test#version:0#52, schema:test#version:0#53, schema:test#version:0#54, schema:test#version:0#55, schema:test#version:0#56, schema:test#version:0#57, schema:test#version:0#58, schema:test#version:0#59, schema:test#version:0#60, schema:test#version:0#61, schema:test#version:0#62, schema:test#version:0#63],
+ * id=3,schemaName=test,tableName=tb0,status=PUBLIC,version=5,engine=INNODB,flag=0,primaryIndexes={PRIMARY=[indexMeta name : tb0.__drds_implicit_id_
+ *     keyColumn :
+ *         tb0._drds_implicit_id_
+ *     valueColumn :
+ *         tb0.id
+ * ]};
+ *
+ * 分库分表:
+ * TableMeta[digest=test.tb2#version:5,tableGroupDigest=<null>,schemaDigest=[schema:test#version:0#0, schema:test#version:0#1, schema:test#version:0#2, schema:test#version:0#3, schema:test#version:0#4, schema:test#version:0#5, schema:test#version:0#6, schema:test#version:0#7, schema:test#version:0#8, schema:test#version:0#9, schema:test#version:0#10, schema:test#version:0#11, schema:test#version:0#12, schema:test#version:0#13, schema:test#version:0#14, schema:test#version:0#15, schema:test#version:0#16, schema:test#version:0#17, schema:test#version:0#18, schema:test#version:0#19, schema:test#version:0#20, schema:test#version:0#21, schema:test#version:0#22, schema:test#version:0#23, schema:test#version:0#24, schema:test#version:0#25, schema:test#version:0#26, schema:test#version:0#27, schema:test#version:0#28, schema:test#version:0#29, schema:test#version:0#30, schema:test#version:0#31, schema:test#version:0#32, schema:test#version:0#33, schema:test#version:0#34, schema:test#version:0#35, schema:test#version:0#36, schema:test#version:0#37, schema:test#version:0#38, schema:test#version:0#39, schema:test#version:0#40, schema:test#version:0#41, schema:test#version:0#42, schema:test#version:0#43, schema:test#version:0#44, schema:test#version:0#45, schema:test#version:0#46, schema:test#version:0#47, schema:test#version:0#48, schema:test#version:0#49, schema:test#version:0#50, schema:test#version:0#51, schema:test#version:0#52, schema:test#version:0#53, schema:test#version:0#54, schema:test#version:0#55, schema:test#version:0#56, schema:test#version:0#57, schema:test#version:0#58, schema:test#version:0#59, schema:test#version:0#60, schema:test#version:0#61, schema:test#version:0#62, schema:test#version:0#63],
+ * id=23,schemaName=test,tableName=tb2,status=PUBLIC,version=5,engine=INNODB,flag=0,primaryIndexes={PRIMARY=[indexMeta name : tb2._id_buyer_id
+ *     keyColumn :
+ *         tb2.id tb2.buyer_id
+ *     valueColumn :
+ *         tb2.name
+ * ]},secondaryIndexes={},primaryKeys={buyer_id=tb2.buyer_id, id=tb2.id},columns={},allColumns={buyer_id=tb2.buyer_id, id=tb2.id, name=tb2.name},allColumnsOrderByDefined=[tb2.id, tb2.buyer_id, tb2.name],hasPrimaryKey=true,tableColumnMeta=com.alibaba.polardbx.optimizer.config.table.TableColumnMeta@601355ec,autoUpdateColumns=<null>,gsiTableMetaBean=<null>,gsiPublished=<null>,complexTaskOutlineRecord=<null>,complexTaskTableMetaBean=com.alibaba.polardbx.optimizer.config.table.ComplexTaskMetaManager$ComplexTaskTableMetaBean@47d26d8d,initializerExpressionFactory=com.alibaba.polardbx.optimizer.config.table.TableMeta$TableMetaInitializerExpressionFactory@3b953f14,isAutoPartition=false,partitionInfo=<null>,newPartitionInfo=<null>,fileMetaSet=<null>,flatFileMetas=<null>,localPartitionDefinitionInfo=<null>]
  *
  * @author whisper
  */
 public class TableMeta implements Serializable, Cloneable, Table, Wrapper {
 
     private static final long serialVersionUID = 5168519373619656091L;
+    /** test.tb0#version:5 */
     private String digest;
     /**
      * the table group version of table
@@ -99,7 +119,9 @@ public class TableMeta implements Serializable, Cloneable, Table, Wrapper {
     private List<String> tableGroupDigest = null;
 
     /**
-     * the schema version of table
+     * the schema version of table;
+     * 这个是什么？为什么单库单表初始化后有 schema:test#version:0#35?
+     * 这个总共有 64个，用于 mdl 的 tableName；
      */
     private List<String> schemaDigest = null;
 
@@ -113,6 +135,7 @@ public class TableMeta implements Serializable, Cloneable, Table, Wrapper {
      */
     private final String tableName;
 
+    /** 注意有 online schema change 变更的状态 */
     private final TableStatus status;
 
     private final long version;

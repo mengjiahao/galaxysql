@@ -147,6 +147,12 @@ public class MetaDbDataIdBuilder {
         return TABLE_DATA_ID.format(new Object[] {schemaName, ""});
     }
 
+    /**
+     *
+     * @param schemaName
+     * @param tableName
+     * @return schemaName.tableName
+     */
     public static String getTableDataId(String schemaName, String tableName) {
         return TABLE_DATA_ID.format(new Object[] {schemaName, tableName});
     }

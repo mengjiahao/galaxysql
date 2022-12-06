@@ -45,6 +45,9 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 单个CN节点 接收用户请求，执行逻辑执行计划；
+ */
 public class PlanExecutor extends AbstractLifecycle {
 
     public static ResultCursor execute(ExecutionPlan plan, ExecutionContext context) {
@@ -60,10 +63,12 @@ public class PlanExecutor extends AbstractLifecycle {
         WorkloadUtil.getWorkloadType(context, plan);
         try {
             if (enableProfileStat) {
+                // 一般是 false
                 context.getRuntimeStatistics().setPlanTree(plan.getPlan());
             }
             if (PlanManagerUtil.useSPM(context.getSchemaName(), plan, null, context)
                 && context.getParamManager().getBoolean(ConnectionParams.PLAN_EXTERNALIZE_TEST)) {
+                // SPM (SQL Plan Management)
                 String serialPlan = PlanManagerUtil.relNodeToJson(plan.getPlan());
                 byte[] compressPlan = PlanManagerUtil.compressPlan(serialPlan);
                 plan.setPlan(PlanManagerUtil.jsonToRelNode(new String(PlanManagerUtil.uncompress(compressPlan)),
@@ -74,6 +79,7 @@ public class PlanExecutor extends AbstractLifecycle {
             if (plan.isExplain()) {
                 result = ExplainExecutorUtil.explain(plan, context, explain);
             } else {
+                // DDL/show 走到这
                 result = execByExecPlanNodeByOne(plan, context);
                 // Only used for Async DDL.
                 context.getMultiDdlContext().incrementPlanIndex();
@@ -91,10 +97,12 @@ public class PlanExecutor extends AbstractLifecycle {
     public static ResultCursor execByExecPlanNodeByOne(
         ExecutionPlan executionPlan, ExecutionContext ec) {
         try {
+            // relNode=rel#351:LogicalCreateTable.DRDS.[].any()
             RelNode relNode = executionPlan.getPlan();
             //record the row count for hashAgg&overWindow&LogicalUnion.
             final RelMetadataQuery mq = relNode.getCluster().getMetadataQuery();
 
+            // 给 relNode 执行 visit;
             new RelVisitor() {
                 @Override
                 public void visit(RelNode node, int ordinal, RelNode parent) {

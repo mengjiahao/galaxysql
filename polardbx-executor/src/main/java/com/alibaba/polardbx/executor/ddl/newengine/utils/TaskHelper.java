@@ -101,7 +101,11 @@ public class TaskHelper {
     }
 
     /**
-     * DdlTask -> DdlEngineTaskRecord
+     * DdlJob 的各个DdlTask 转为 DdlEngineTaskRecord;
+     *
+     * DdlTask -> DdlEngineTaskRecord;
+     *
+     *
      */
     public static DdlEngineTaskRecord toDdlEngineTaskRecord(DdlTask task) {
         Preconditions.checkArgument(task.getJobId() != null);
@@ -125,6 +129,7 @@ public class TaskHelper {
             taskRecord.value = valueContent;
         }
 
+        /** 大部分信息转化成JSON格式 */
         taskRecord.value = JSON.toJSONString(task);
         if(task instanceof CostEstimableDdlTask && ((CostEstimableDdlTask) task).getCostInfo() != null){
             String costInfoStr = JSONObject.toJSONString(((CostEstimableDdlTask) task).getCostInfo());

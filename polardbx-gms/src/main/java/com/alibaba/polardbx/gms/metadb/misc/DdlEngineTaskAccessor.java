@@ -253,6 +253,14 @@ public class DdlEngineTaskAccessor extends AbstractAccessor {
         }
     }
 
+    /**
+     * 更新 ddl_engine_task 表状态;
+     * @param jobId
+     * @param taskId
+     * @param phyObjectInfo
+     * @param isReset
+     * @return
+     */
     public int updatePhyDone(long jobId, long taskId, String phyObjectInfo, boolean isReset) {
         try {
             final Map<Integer, ParameterContext> params = new HashMap<>(3);

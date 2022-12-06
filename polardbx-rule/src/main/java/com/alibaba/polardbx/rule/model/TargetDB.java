@@ -28,6 +28,8 @@ import com.taobao.tddl.common.utils.TddlToStringStyle;
 /**
  * 目标数据库特征 包含读写目标ds的id 以及该ds中符合要求的表名列表。
  *
+ * TargetDB[dbIndex=TEST_000000_GROUP,tableNames={tb2_Kbr8_00=null, tb2_Kbr8_01=null},logTblName=<null>]
+ *
  * @author shenxun
  */
 public class TargetDB {

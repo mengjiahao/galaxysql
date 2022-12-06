@@ -38,6 +38,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * 创建 create table 对应的 Ddl task;
+ */
 public class CreateTableJobFactory extends DdlJobFactory {
 
     public static final String CREATE_TABLE_CDC_MARK_TASK = "CREATE_TABLE_CDC_MARK_TASK";
@@ -70,6 +73,11 @@ public class CreateTableJobFactory extends DdlJobFactory {
     protected void validate() {
     }
 
+    /**
+     * 这里构造 DdlJob 依赖的 DdlTask;
+     *
+     * @return
+     */
     @Override
     protected ExecutableDdlJob doCreate() {
         CreateTableValidateTask validateTask =

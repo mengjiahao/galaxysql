@@ -143,6 +143,28 @@ import static com.alibaba.polardbx.common.constants.SequenceAttribute.AUTO_SEQ_P
 
 /**
  * @author mengshi.sunmengshi
+ *
+ * 注意 GmsTableMetaManager 不是线程安全的数据结构，每个 Context 拥有单独一份 GmsTableMetaManager;
+ *
+ * latestTables 维护 parition表缓存, 不会并发修改？;
+ *
+ *
+ * 单库单表 create table tb1 (id INTEGER NOT NULL, name VARCHAR(120));：
+ * tb1=TableMeta[digest=test.tb1#version:5,tableGroupDigest=<null>,schemaDigest=[schema:test#version:0#0, schema:test#version:0#1, schema:test#version:0#2, schema:test#version:0#3, schema:test#version:0#4, schema:test#version:0#5, schema:test#version:0#6, schema:test#version:0#7, schema:test#version:0#8, schema:test#version:0#9, schema:test#version:0#10, schema:test#version:0#11, schema:test#version:0#12, schema:test#version:0#13, schema:test#version:0#14, schema:test#version:0#15, schema:test#version:0#16, schema:test#version:0#17, schema:test#version:0#18, schema:test#version:0#19, schema:test#version:0#20, schema:test#version:0#21, schema:test#version:0#22, schema:test#version:0#23, schema:test#version:0#24, schema:test#version:0#25, schema:test#version:0#26, schema:test#version:0#27, schema:test#version:0#28, schema:test#version:0#29, schema:test#version:0#30, schema:test#version:0#31, schema:test#version:0#32, schema:test#version:0#33, schema:test#version:0#34, schema:test#version:0#35, schema:test#version:0#36, schema:test#version:0#37, schema:test#version:0#38, schema:test#version:0#39, schema:test#version:0#40, schema:test#version:0#41, schema:test#version:0#42, schema:test#version:0#43, schema:test#version:0#44, schema:test#version:0#45, schema:test#version:0#46, schema:test#version:0#47, schema:test#version:0#48, schema:test#version:0#49, schema:test#version:0#50, schema:test#version:0#51, schema:test#version:0#52, schema:test#version:0#53, schema:test#version:0#54, schema:test#version:0#55, schema:test#version:0#56, schema:test#version:0#57, schema:test#version:0#58, schema:test#version:0#59, schema:test#version:0#60, schema:test#version:0#61, schema:test#version:0#62, schema:test#version:0#63],id=17,schemaName=test,tableName=tb1,status=PUBLIC,version=5,engine=INNODB,flag=0,primaryIndexes={PRIMARY=[indexMeta name : tb1.__drds_implicit_id_
+ *     keyColumn :
+ *         tb1._drds_implicit_id_
+ *     valueColumn :
+ *         tb1.id tb1.name
+ * ]},secondaryIndexes={},primaryKeys={_drds_implicit_id_=tb1._drds_implicit_id_},columns={},allColumns={id=tb1.id, name=tb1.name, _drds_implicit_id_=tb1._drds_implicit_id_},allColumnsOrderByDefined=[tb1.id, tb1.name, tb1._drds_implicit_id_],hasPrimaryKey=true,tableColumnMeta=com.alibaba.polardbx.optimizer.config.table.TableColumnMeta@48986bae,autoUpdateColumns=<null>,gsiTableMetaBean=<null>,gsiPublished=<null>,complexTaskOutlineRecord=<null>,complexTaskTableMetaBean=com.alibaba.polardbx.optimizer.config.table.ComplexTaskMetaManager$ComplexTaskTableMetaBean@49789944,initializerExpressionFactory=com.alibaba.polardbx.optimizer.config.table.TableMeta$TableMetaInitializerExpressionFactory@5f1bc84a,isAutoPartition=false,partitionInfo=<null>,newPartitionInfo=<null>,fileMetaSet=<null>,flatFileMetas=<null>,localPartitionDefinitionInfo=<null>]
+ *
+ * 分库分表 create table tb2 (id INTEGER not null auto_increment, name VARCHAR(120), primary key(id)) dbpartition by hash(id) tbpartition by hash(id) tbpartitions 2;:
+ * tb2=TableMeta[digest=test.tb2#version:5,tableGroupDigest=<null>,schemaDigest=[schema:test#version:0#0, schema:test#version:0#1, schema:test#version:0#2, schema:test#version:0#3, schema:test#version:0#4, schema:test#version:0#5, schema:test#version:0#6, schema:test#version:0#7, schema:test#version:0#8, schema:test#version:0#9, schema:test#version:0#10, schema:test#version:0#11, schema:test#version:0#12, schema:test#version:0#13, schema:test#version:0#14, schema:test#version:0#15, schema:test#version:0#16, schema:test#version:0#17, schema:test#version:0#18, schema:test#version:0#19, schema:test#version:0#20, schema:test#version:0#21, schema:test#version:0#22, schema:test#version:0#23, schema:test#version:0#24, schema:test#version:0#25, schema:test#version:0#26, schema:test#version:0#27, schema:test#version:0#28, schema:test#version:0#29, schema:test#version:0#30, schema:test#version:0#31, schema:test#version:0#32, schema:test#version:0#33, schema:test#version:0#34, schema:test#version:0#35, schema:test#version:0#36, schema:test#version:0#37, schema:test#version:0#38, schema:test#version:0#39, schema:test#version:0#40, schema:test#version:0#41, schema:test#version:0#42, schema:test#version:0#43, schema:test#version:0#44, schema:test#version:0#45, schema:test#version:0#46, schema:test#version:0#47, schema:test#version:0#48, schema:test#version:0#49, schema:test#version:0#50, schema:test#version:0#51, schema:test#version:0#52, schema:test#version:0#53, schema:test#version:0#54, schema:test#version:0#55, schema:test#version:0#56, schema:test#version:0#57, schema:test#version:0#58, schema:test#version:0#59, schema:test#version:0#60, schema:test#version:0#61, schema:test#version:0#62, schema:test#version:0#63],id=18,schemaName=test,tableName=tb2,status=PUBLIC,version=5,engine=INNODB,flag=0,primaryIndexes={PRIMARY=[indexMeta name : tb2._id
+ *     keyColumn :
+ *         tb2.id
+ *     valueColumn :
+ *         tb2.name
+ * ]},secondaryIndexes={},primaryKeys={id=tb2.id},columns={},allColumns={id=tb2.id, name=tb2.name},allColumnsOrderByDefined=[tb2.id, tb2.name],hasPrimaryKey=true,tableColumnMeta=com.alibaba.polardbx.optimizer.config.table.TableColumnMeta@51e968a,autoUpdateColumns=<null>,gsiTableMetaBean=<null>,gsiPublished=<null>,complexTaskOutlineRecord=<null>,complexTaskTableMetaBean=com.alibaba.polardbx.optimizer.config.table.ComplexTaskMetaManager$ComplexTaskTableMetaBean@1dc1e3f1,initializerExpressionFactory=com.alibaba.polardbx.optimizer.config.table.TableMeta$TableMetaInitializerExpressionFactory@753ca688,isAutoPartition=false,partitionInfo=<null>,newPartitionInfo=<null>,fileMetaSet=<null>,flatFileMetas=<null>,localPartitionDefinitionInfo=<null>]
+ *
  */
 public class GmsTableMetaManager extends AbstractLifecycle implements SchemaManager {
 
@@ -154,9 +176,13 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
     private final StorageInfoManager storage;
     /**
      * !!!!!!!NOTE !!!!!!
-     * all tableNames should convert to lowercase
+     * all tableNames should convert to lowercase;
+     * schema 元数据内存缓存; 只读？
+     * java 的好处是 只读数据结构 可直接多线程共享，而 cpp 还需要考虑不使用后内存回收;
+     * 注意 latestTables 不是线程安全的数据结构，每次会复制一份;
      */
     private Map<String, TableMeta> latestTables = null;
+    /** 构建执行计划后再检查是否 expired; 注意这不是线程安全的 */
     private boolean expired;
 
     public GmsTableMetaManager(String schemaName, String appName, TddlRuleManager rule, StorageInfoManager storage) {
@@ -172,11 +198,14 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         this.rule = rule;
         this.latestTables = new HashMap<>(old.latestTables);
         this.storage = old.storage;
+        /** 初始化时会加载缓存 */
         loadAndCacheTableMeta(tableName.toLowerCase());
     }
 
     /**
-     * Load multiple tables in transaction
+     * Load multiple tables in transaction;
+     * 重新 reload 新的元数据;
+     * GmsTableMetaManager.tonewversion()会调用;
      */
     public GmsTableMetaManager(GmsTableMetaManager old, List<String> tableNames, TddlRuleManager rule) {
         this.schemaName = old.schemaName;
@@ -207,6 +236,17 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         }
     }
 
+    /**
+     * 从 metadb schema表中拉取元数据;
+     * @param metaDbConn
+     * @param schemaName
+     * @param logicalTableNameList
+     * @param rule
+     * @param storage
+     * @param fetchPrimaryTableMetaOnly
+     * @param includeInvisiableInfo
+     * @return metaMap
+     */
     public static Map<String, TableMeta> fetchTableMeta(Connection metaDbConn,
                                                         String schemaName,
                                                         List<String> logicalTableNameList,
@@ -240,6 +280,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
             if (tableRecord != null) {
                 List<ColumnsRecord> columnsRecords;
                 List<IndexesRecord> indexesRecords;
+                /** 获取索引 与 列的 元数据 */
                 if (includeInvisiableInfo) {
                     columnsRecords =
                         tableInfoManager.queryColumns(schemaName, origTableName);
@@ -355,7 +396,10 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
     /**
      * Default implementation of schema change
      * 1. Non-preemptive, which may cause deadlock when multiple table changes happens
-     * 2. Allow two concurrent version exists, which is not safe for single-versioned TableRule & PartitionInfoManager
+     * 2. Allow two concurrent version exists, which is not safe for single-versioned TableRule & PartitionInfoManager;
+     *
+     * 重新加载 Schema cache;
+     * 注意只更新关注的 table;
      */
     public void tonewversion(String tableName) {
         tonewversionImpl(Arrays.asList(tableName), false, null, null, null, true);
@@ -401,6 +445,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         GmsTableMetaManager gtm =
             (GmsTableMetaManager) OptimizerContext.getContext(schemaName).getLatestSchemaManager();
         if (!isPartDb) {
+            // 新加的table走这里
             tonewversion(tableName);
         } else {
             final TableGroupInfoManager tgm = OptimizerContext.getContext(schemaName).getTableGroupInfoManager();
@@ -425,6 +470,17 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
 
     }
 
+    /**
+     * 从 metadb records 构造出 内存 TableMeta;
+     * TableMeta 包含了表的所有元数据，包括 IndexMeta 与 ColumnMeta;
+     *
+     * @param schemaName
+     * @param tableRecord
+     * @param columnsRecords
+     * @param indexesRecords
+     * @param tableName
+     * @return
+     */
     public static TableMeta buildTableMeta(String schemaName, TablesRecord tableRecord,
                                            List<ColumnsRecord> columnsRecords,
                                            List<IndexesRecord> indexesRecords,
@@ -433,6 +489,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
             return null;
         }
         List<ColumnMeta> allColumnsOrderByDefined = new ArrayList<>();
+        /** 此map方便引用 ColumnMeta 中 column*/
         Map<String, ColumnMeta> columnMetaMap = new TreeMap<>(CaseInsensitive.CASE_INSENSITIVE_ORDER);
         List<IndexMeta> secondaryIndexMetas = new ArrayList<>();
         boolean hasPrimaryKey;
@@ -445,6 +502,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
             .orElse(CharsetName.DEFAULT_CHARACTER_SET);
 
         try {
+            /** 将 ColumnMeta 添加到 TableMeta; */
             for (ColumnsRecord record : columnsRecords) {
                 String columnName = record.columnName;
                 String extra = record.extra;
@@ -507,8 +565,10 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
                 ColumnMeta columnMeta =
                     new ColumnMeta(tableName, columnName, null, field, ColumnStatus.convert(status), flag);
 
+                /** 注意 按照顺序添加到 allColumnsOrderByDefined */
                 allColumnsOrderByDefined.add(columnMeta);
 
+                /** 添加 (columnName, columnMeta) map */
                 columnMetaMap.put(columnMeta.getName(), columnMeta);
             }
 
@@ -520,6 +580,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
                         primaryKeys.add(indexesRecords.get(0).columnName);
                     }
                 } else {
+                    /** primary index 只有1个，primaryKeys 是 column names */
                     primaryKeys = extractPrimaryKeys(indexesRecords);
                     if (primaryKeys.size() == 0) {
                         if (indexesRecords.size() > 0) {
@@ -530,6 +591,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
                         hasPrimaryKey = true;
                     }
 
+                    /** 二级索引 secondaryIndexMetas 引用了 ColumnMeta */
                     Map<String, SecondaryIndexMeta> localIndexMetaMap = new HashMap<>();
                     for (IndexesRecord record : indexesRecords) {
                         String indexName = record.indexName;
@@ -562,6 +624,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
             return null;
         }
 
+        // 这个不是除了 primary key 后剩下的 column？
         List<String> primaryValues = new ArrayList<String>(allColumnsOrderByDefined.size() - primaryKeys.size());
         for (ColumnMeta column : allColumnsOrderByDefined) {
             boolean c = false;
@@ -576,6 +639,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
             }
         }
 
+        /** 构造了 primary index meta */
         IndexMeta primaryKeyMeta = buildPrimaryIndexMeta(tableName,
             columnMetaMap,
             true,
@@ -592,6 +656,12 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         return res;
     }
 
+    /**
+     * 名字中带 PRIMARY 是 priamry key;
+     * primary index只有1个;
+     * @param indexesRecords
+     * @return List(columnName)
+     */
     private static List<String> extractPrimaryKeys(List<IndexesRecord> indexesRecords) {
         List<String> primaryKeys = new ArrayList<>();
         for (IndexesRecord record : indexesRecords) {
@@ -651,6 +721,11 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         return metas;
     }
 
+    /**
+     * 从 cache.latestTables 里拿 TableMeta;
+     * @param tableName
+     * @return
+     */
     @Override
     public TableMeta getTable(String tableName) {
         tableName = tableName.toLowerCase();
@@ -935,11 +1010,19 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         logParitionInfo(logTblMeta);
     }
 
+    /**
+     * 真正执行 metadb 加载全量 元数据缓存;
+     * @param tableNames
+     */
     protected void loadAndCacheTableMeta(List<String> tableNames) {
         try (Connection metaDbConn = MetaDbUtil.getConnection()) {
             metaDbConn.setAutoCommit(false);
             metaDbConn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
+            /**
+             * 分库分表:
+             * tb2 -> {TableMeta@25270} "TableMeta[digest=test.tb2#version:3,tableGroupDigest=<null>,schemaDigest=[schema:test#version:0#0, schema:test#version:0#1, schema:test#version:0#2, schema:test#version:0#3, schema:test#version:0#4, schema:test#version:0#5, schema:test#version:0#6, schema:test#version:0#7, schema:test#version:0#8, schema:test#version:0#9, schema:test#version:0#10, schema:test#version:0#11, schema:test#version:0#12, schema:test#version:0#13, schema:test#version:0#14, schema:test#version:0#15, schema:test#version:0#16, schema:test#version:0#17, schema:test#version:0#18, schema:test#version:0#19, schema:test#version:0#20, schema:test#version:0#21, schema:test#version:0#22, schema:test#version:0#23, schema:test#version:0#24, schema:test#version:0#25, schema:test#version:0#26, schema:test#version:0#27, schema:test#version:0#28, schema:test#version:0#29, schema:test#version:0#30, schema:test#version:0#31, schema:test#version:0#32, schema:test#version:0#33, schema:test#version:0#34, schema:test#version:0#35, "
+             */
             Map<String, TableMeta> metaMap =
                 fetchTableMeta(metaDbConn, schemaName, tableNames, rule, storage, false, false);
 
@@ -948,12 +1031,14 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
                 TableMeta meta = entry.getValue();
 
                 if (meta == null) {
+                    // drop table 的值是null
                     latestTables.remove(tableName);
                 } else {
                     //create/alter table
                     meta.setSchemaName(schemaName);
                     latestTables.put(tableName, meta);
                     if (meta.getGsiTableMetaBean() != null && !meta.getGsiTableMetaBean().indexMap.isEmpty()) {
+                        // 有全局索引则走这
                         for (GsiMetaManager.GsiIndexMetaBean index : meta.getGsiTableMetaBean().indexMap.values()) {
                             String indexName = index.indexName.toLowerCase();
                             TableMeta indexTableMeta =
@@ -985,6 +1070,9 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
     }
 
     /**
+     * 重新加载 Schema cache;
+     * 注意 version 版本切换, 因此加载的table全量信息;
+     *
      * Steps:
      * 1. Check meta version of table, decide whether loading new TableMeta if necessary
      * 2. Invalidate existed cache, such as SequenceCache and TableRule
@@ -994,11 +1082,13 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
      * 6. Invalidate Plan Cache
      * 7. Release MDL
      *
+     * @param tableNameList
      * @param allowTwoVersion if two versions of schema exist at the same time
      */
     private void tonewversionImpl(List<String> tableNameList,
                                   boolean preemptive, Long initWait, Long interval, TimeUnit timeUnit,
                                   boolean allowTwoVersion) {
+        /** 注意这里会修改全局 OptimizerContext(schema)，需要锁保护 */
         synchronized (OptimizerContext.getContext(schemaName)) {
             boolean isNewPartitionDb = DbInfoManager.getInstance().isNewPartitionDb(schemaName);
             GmsTableMetaManager oldSchemaManager =
@@ -1023,6 +1113,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
                 }
 
                 // Invalidate various cache
+                /** 更新 TableRuleManager/PartitionInfoManager */
                 SequenceCacheManager.invalidate(schemaName, AUTO_SEQ_PREFIX + tableName);
                 if (!isNewPartitionDb) {
                     if (version == -1) {
@@ -1046,8 +1137,10 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
 
             // Load new TableMeta
             {
+                // (tb2, 3)
                 Map.Entry<String, Long> firstTable = staleTables.entrySet().iterator().next();
                 String tableName = firstTable.getKey();
+                // 一般新加的表 currentMeta=null
                 TableMeta currentMeta = oldSchemaManager.getTableWithNull(tableName);
                 long oldVersion = currentMeta == null ? 0 : currentMeta.getVersion();
                 long newVersion = firstTable.getValue();
@@ -1063,6 +1156,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
                     }
                 }
 
+                /** 只更新关注的 table */
                 // TODO(moyi) unify these two code path
                 if (tableNameList.size() > 1) {
                     newSchemaManager = new GmsTableMetaManager(oldSchemaManager, tableNameList, rule);
@@ -1074,6 +1168,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
 
                 SQLRecorderLogger.ddlMetaLogger.info("allowTwoVersion1:" + String.valueOf(allowTwoVersion));
                 if (allowTwoVersion) {
+                    /** 更新 OptimizerContext 的 SchemaManager; 怎么保证多线程的可见性？ */
                     OptimizerContext.getContext(schemaName).setSchemaManager(newSchemaManager);
                 }
                 SQLRecorderLogger.ddlMetaLogger.info(MessageFormat.format(
@@ -1085,6 +1180,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
 
             // Insert mdl barrier
             {
+                /** MDL 锁 */
                 mdlCriticalSection(preemptive, initWait, interval, timeUnit, oldSchemaManager, staleTables.keySet(),
                     isNewPartitionDb, (x) -> {
                         oldSchemaManager.expire();
@@ -1102,10 +1198,12 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
 
     /**
      * Insert an MDL barrier for tables to clear cross status transaction.
+     * 更新 schema 时调用;
      */
     private void mdlCriticalSection(boolean preemptive, Long initWait, Long interval, TimeUnit timeUnit,
                                     GmsTableMetaManager oldSchemaManager, Collection<String> tableNameList,
                                     boolean isNewPartDb, Function<Void, Void> duringBarrier) {
+        // 获取 schemaName 对应的 MdlContextStamped
         final MdlContext context;
         if (preemptive) {
             context = MdlManager.addContext(schemaName, initWait, interval, timeUnit);
@@ -1135,6 +1233,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
             String tableNameFirst = tableNameList.stream().findFirst().get();
             if (lockedTables.size() == 1) {
                 // table sync (all database support)
+                /** 对 schemaName.lockedTables 上悲观写锁 MDL_EXCLUSIVE; 注意事务号用的1 */
                 MdlTicket ticket = context.acquireLock(
                     new MdlRequest(1L,
                         MdlKey.getTableKeyWithLowerTableName(schemaName, lockedTables.get(0)),
@@ -1143,6 +1242,7 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
 
                 tickets.add(ticket);
             } else if (oldSchemaManager.getTableWithNull(tableNameFirst) != null) {
+                /** 注意保证上锁的顺序 */
                 // tables sync only (for table group)
                 // oldDigest will not be null, then tables sync can use tablegroup mdl to clear old transactio
                 List<String> oldDigestList = isNewPartDb ?
@@ -1164,15 +1264,18 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
                 "[{0} {1}] Mdl write lock acquired table[{2}] cost {3}ms",
                 Thread.currentThread().getName(), this.hashCode(), lockedTables, elapsedMillis));
 
+            /** 注意在 mdl 上锁后执行 */
             if (duringBarrier != null) {
                 duringBarrier.apply(null);
             }
 
+            /** 注意这里是清空所有 prepared plan cache */
             // invalid plan cache when old table meta is not in using
             // Note: Invalidate plan cache is still necessary,
             // because non-multi-write plan for simple table may be cached.
             PlanManager.getInstance().invalidateCache();
 
+            //  解锁
             for (MdlTicket ticket : tickets) {
                 context.releaseLock(1L, ticket);
             }
@@ -1187,6 +1290,11 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         }
     }
 
+    /**
+     * 查看 table_schema 的 version;
+     * @param tableName
+     * @return
+     */
     private long checkTableVersion(String tableName) {
         long version = -1;
 
@@ -1210,6 +1318,9 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         return schemaName;
     }
 
+    /**
+     * 直接标记为 expired;
+     */
     @Override
     public void expire() {
         this.expired = true;
@@ -1631,6 +1742,14 @@ public class GmsTableMetaManager extends AbstractLifecycle implements SchemaMana
         }
     }
 
+    /**
+     * 注意 IndexMeta 中列信息 会直接引用 columnMetas(保存有 ColumnMeta)；
+     * @param secondaryIndexMeta
+     * @param columnMetas
+     * @param tableName
+     * @param strongConsistent
+     * @return
+     */
     private static IndexMeta convertFromSecondaryIndexMeta(SecondaryIndexMeta secondaryIndexMeta,
                                                            Map<String, ColumnMeta> columnMetas, String tableName,
                                                            boolean strongConsistent) {

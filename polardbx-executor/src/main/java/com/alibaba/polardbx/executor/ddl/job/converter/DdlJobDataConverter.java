@@ -137,6 +137,12 @@ public class DdlJobDataConverter {
         return data;
     }
 
+    /**
+     * 将 PhysicalPlanData 转换为 Calcite RelNode;
+     * @param data
+     * @param executionContext
+     * @return
+     */
     public static List<RelNode> convertToPhysicalPlans(PhysicalPlanData data, ExecutionContext executionContext) {
         List<RelNode> physicalPlans = new ArrayList<>();
 

@@ -40,7 +40,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * DDL-relevant runtime data & state
+ * DDL-relevant runtime data & state;
+ *
+ * 既存入 ExecutionContext 传入的输入信息，还有 运行时状态信息;
  */
 public class DdlContext {
 
@@ -49,6 +51,7 @@ public class DdlContext {
     private String schemaName;
     private String objectName;
     private String traceId;
+    /** 当前的表名:test.tb1 */
     private Set<String> resources = new HashSet<>();
     private String ddlStmt;
     private transient boolean isSubJob = false;
@@ -62,6 +65,7 @@ public class DdlContext {
     private transient AtomicReference<Boolean> clientConnectionReset = new AtomicReference<>(false);
     /**
      * Get current DDL state.
+     * 异步任务状态;
      */
     private transient AtomicReference<DdlState> state = new AtomicReference<>();
     /**
@@ -317,6 +321,10 @@ public class DdlContext {
         return this.state.get();
     }
 
+    /**
+     * 修改内存中状态
+     * @param update
+     */
     public void unSafeSetDdlState(final DdlState update) {
         this.state.set(update);
     }

@@ -26,6 +26,11 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 单库单表：
+ * {"description":"","logicalTableName":"tb1","name":"CreateTablePhyDdlTask","physicalPlanData":{"createTablePhysicalSql":"CREATE TABLE tb1 (\n\tid INTEGER NOT NULL,\n\tname VARCHAR(120),\n\t_drds_implicit_id_ bigint AUTO_INCREMENT,\n\tPRIMARY KEY (_drds_implicit_id_)\n)","defaultDbIndex":"TEST_SINGLE_GROUP","defaultPhyTableName":"tb1_Nhdu","explain":false,"flashbackRename":false,"ifExists":false,"ifNotExists":false,"kind":"CREATE_TABLE","localityDesc":{"balanceSingleTable":false,"dnList":[],"dnString":""},"logicalTableName":"tb1","paramsList":[{1:{"args":[1,"`tb1_Nhdu`"],"parameterMethod":"setTableName","value":"`tb1_Nhdu`"}}],"partitioned":false,"schemaName":"test","sequence":{"innerStep":100000,"new":true,"type":"GROUP","unitCount":1,"unitIndex":0},"sqlTemplate":"CREATE TABLE ? (\n\tid INTEGER NOT NULL,\n\tname VARCHAR(120),\n\t_drds_implicit_id_ bigint AUTO_INCREMENT,\n\tPRIMARY KEY (_drds_implicit_id_)\n)","tableTopology":{"TEST_SINGLE_GROUP":[["tb1_Nhdu"]]},"tablesExtRecord":{"autoPartition":false,"broadcast":0,"dbMetaMap":"","dbNamePattern":"TEST_SINGLE_GROUP","dbPartitionCount":1,"dbPartitionKey":"","dbPartitionPolicy":"","dbRule":"","extPartitions":"","flag":0,"fullTableScan":0,"locked":false,"newTableName":"","status":0,"tableName":"tb1","tableSchema":"test","tableType":0,"tbMetaMap":"","tbNamePattern":"tb1_Nhdu","tbPartitionCount":1,"tbPartitionKey":"","tbPartitionPolicy":"","tbRule":"","version":1},"temporary":false,"truncatePartition":false,"withHint":false},"schemaName":"test"}；
+ *
+ */
 public class DdlEngineTaskRecord implements SystemTableRecord {
 
     public long jobId;

@@ -18,9 +18,13 @@ package com.alibaba.polardbx.executor.ddl.newengine.sync;
 
 import java.util.List;
 
+/**
+ * 分发给 Leader CN 的 DdlRequest 消息；
+ */
 public class DdlRequest {
 
     private String schemaName;
+    /** 这里存储 jobId 即可，因为实际内容已经存储在 metadb中；*/
     private List<Long> jobIds;
 
     public DdlRequest() {

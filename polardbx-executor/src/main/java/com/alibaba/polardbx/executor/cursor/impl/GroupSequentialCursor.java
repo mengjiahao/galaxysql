@@ -45,9 +45,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * CN 最终调用 DN 执行 物理 DDL；
+ */
 public class GroupSequentialCursor extends AbstractCursor {
 
     protected String schemaName;
+    /**  (127.0.0.1:4886, rel#284:PhyDdlTableOperation.DRDS.[].any()) */
     protected Map<String, List<RelNode>> plansByInstance;
     protected int totalSize = 0;
     protected final ExecutionContext executionContext;
@@ -72,6 +76,7 @@ public class GroupSequentialCursor extends AbstractCursor {
                                  String schemaName, List<Throwable> exceptions) {
         super(false);
         this.schemaName = schemaName;
+        // (127.0.0.1:4886 -> {ArrayList@23499}[rel#284:PhyDdlTableOperation.DRDS.[].any()])
         this.plansByInstance = plansByInstance;
         for (List<RelNode> plans : this.plansByInstance.values()) {
             this.totalSize += plans.size();
@@ -81,9 +86,14 @@ public class GroupSequentialCursor extends AbstractCursor {
         this.exceptions = Collections.synchronizedList(exceptions);
 
         RelNode plan0 = this.plansByInstance.values().iterator().next().get(0);
+        // create table: Field [originTableName=TableScan, originColumnName=ROWCOUNT, dataType=BIGINT, autoIncrement=false, primary=false];
         this.returnColumns = ((BaseTableOperation) plan0).getCursorMeta().getColumns();
     }
 
+    /**
+     * 通过线程池 异步 让物理计划串行执行;
+     * 注意物理执行计划输入是 RelNode;
+     */
     @Override
     public void doInit() {
         if (this.inited) {
@@ -94,6 +104,10 @@ public class GroupSequentialCursor extends AbstractCursor {
         }
 
         String traceId = executionContext.getTraceId();
+        /**
+         * 注意 分库分表时 plansByInstance 有多条执行计划，通过线程池 并行执行物理 DDL；
+         * 如果 DN 只有1个，就有多次调用;
+         **/
         for (List<RelNode> plans : plansByInstance.values()) {
             // Inter-instance in parallel and intra-instance sequentially
             executionContext.getExecutorService().submit(schemaName, traceId, AsyncTask.build(() -> {
@@ -105,6 +119,12 @@ public class GroupSequentialCursor extends AbstractCursor {
         super.doInit();
     }
 
+    /**
+     * CN 最终调用 DN 执行物理 DDL;
+     * 在 CN 的 ServerExecutor 线程 执行；
+     *
+     * @param plans 物理执行计划 RelNode
+     */
     private void executeSequentially(List<RelNode> plans) {
         int numObjectsCountedOnInstance = 0;
         for (RelNode plan : plans) {
@@ -115,6 +135,10 @@ public class GroupSequentialCursor extends AbstractCursor {
                 started.set(true);
 
                 if (!phyObjectRecorder.checkIfDone()) {
+                    /**
+                     * 执行 TransactionExecutor
+                     * 通过  MyPhyDdlTableCursor 最终调用 DN 执行 DDL;
+                     ***/
                     Cursor cursor = ExecutorContext.getContext(schemaName)
                         .getTopologyExecutor()
                         .execByExecPlanNode(plan, executionContext);
@@ -131,6 +155,7 @@ public class GroupSequentialCursor extends AbstractCursor {
                         cursorLock.unlock();
                     }
 
+                    // 结果加入 completedCursorQueue
                     completedCursorQueue.put(cursor);
                     numObjectsDone.incrementAndGet();
                     numObjectsCountedOnInstance++;
@@ -156,6 +181,10 @@ public class GroupSequentialCursor extends AbstractCursor {
         }
     }
 
+    /**
+     * 从 completedCursorQueue 获取 currentCursor，实现 流式接口;
+     * @return
+     */
     @Override
     public Row doNext() {
         init();

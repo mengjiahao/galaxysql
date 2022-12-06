@@ -28,10 +28,14 @@ import lombok.Getter;
 
 import java.util.Map;
 
+/**
+ * 校验 变更的 tableVersion >= metadb.curVersion;
+ */
 @TaskName(name = "ValidateTableVersionTask")
 @Getter
 public class ValidateTableVersionTask extends BaseValidateTask {
 
+    /** (tb3, 5) */
     Map<String, Long> tableVersions;
 
     @JSONCreator
@@ -47,10 +51,12 @@ public class ValidateTableVersionTask extends BaseValidateTask {
     }
 
     public void doValidate(ExecutionContext executionContext) {
+        // GmsTableMetaManager
         SchemaManager sm = OptimizerContext.getContext(schemaName).getLatestSchemaManager();
         for (Map.Entry<String, Long> tableVersion : tableVersions.entrySet()) {
             long oldVersion = tableVersion.getValue();
             if (oldVersion > 0) {
+                // drop table时  oldVersion == curVersion
                 long curVersion = sm.getTable(tableVersion.getKey()).getVersion();
                 if (curVersion > oldVersion) {
                     throw new TddlRuntimeException(ErrorCode.ERR_TABLE_META_TOO_OLD, schemaName, tableVersion.getKey());

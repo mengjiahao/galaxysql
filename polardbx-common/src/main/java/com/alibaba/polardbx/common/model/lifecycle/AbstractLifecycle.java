@@ -19,7 +19,7 @@ package com.alibaba.polardbx.common.model.lifecycle;
 import com.alibaba.polardbx.common.utils.GeneralUtil;
 
 public class AbstractLifecycle implements Lifecycle {
-
+    /** Object 可以当lock，synchronized(Object) */
     protected final Object     lock       = new Object();
     protected volatile boolean isInited   = false;
 

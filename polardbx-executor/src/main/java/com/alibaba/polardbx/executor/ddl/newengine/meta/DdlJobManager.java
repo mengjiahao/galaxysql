@@ -123,14 +123,20 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
     }
 
     /**
-     * Store DdlJob & DdlTask to metaDB
+     * Store DdlJob & DdlTask to metaDB;
+     * 这里会将 DdlJob 与 DdlTask 类转换为 metadb record, 字段会转化为 JSON 格式;
+     *
      */
     public boolean storeJob(DdlJob ddlJob, DdlContext ddlContext) {
+        /** jobId=1534691155403341824 */
         Long jobId = ID_GENERATOR.nextId();
         ddlContext.setJobId(jobId);
 
         DdlEngineRecord jobRecord = buildJobRecord(jobId, ddlJob, ddlContext);
         List<DdlEngineTaskRecord> taskRecords = buildTaskRecords(jobId, jobId, ddlJob);
+        /**
+         * DAG图 JSON信息: {1534694867156860929:[],1534694865739186176:[1534694866842288128],1534694866582241280:[1534694865739186176],1534694866842288128:[1534694867320438784],1534694867156860928:[1534694867156860929],1534694867320438784:[1534694867156860930],1534694867324633088:[1534694866582241280],1534694867156860930:[1534694867156860928]}
+         */
         jobRecord.taskGraph = ddlJob.serializeTasks();
 
         FailPoint.inject(FailPointKey.FP_PAUSE_DDL_JOB_ONCE_CREATED, () -> {
@@ -140,13 +146,27 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
         return storeJobImpl(ddlContext, ddlJob, jobRecord, taskRecords, null, jobId);
     }
 
-    // Execute the following operations within a transaction.
+    /**
+     * Execute the following operations within a transaction.
+     * 存储 DdlJob 与 DdlTask 任务 到 metadb ddl_engine/ddl_engine_task 表;
+     * 由于 DDL 可能请求到不同CN节点，因此不同CN节点可能并发存储 DdlJob 到metadb(事务写多条记录)，由于对同一个table做DDL会冲突，
+     * 因此要对 metadb上读写锁;
+     *
+     * @param ddlContext
+     * @param ddlJob
+     * @param jobRecord
+     * @param taskRecords
+     * @param updateTaskRecord
+     * @param jobId
+     * @return
+     */
     private boolean storeJobImpl(DdlContext ddlContext,
                                  DdlJob ddlJob,
                                  DdlEngineRecord jobRecord,
                                  List<DdlEngineTaskRecord> taskRecords,
                                  DdlEngineTaskRecord updateTaskRecord,
                                  long jobId) {
+        // task 是否要 backfill
         Predicate<DdlEngineTaskRecord> isBackfill = x ->
             x.getName().equalsIgnoreCase(MoveTableBackFillTask.getTaskName()) ||
                 x.getName().equalsIgnoreCase(AlterTableGroupBackFillTask.getTaskName());
@@ -155,13 +175,18 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
         DdlEngineStats.METRIC_DDL_TASK_TOTAL.update(taskRecords.size());
         DdlEngineStats.METRIC_BACKFILL_TASK_TOTAL.update(backfillCount);
 
+        /** 在成功上metadb 读写表后才执行 */
         Function<Connection, Boolean> storeDdlRecord = (Connection connection) -> {
+            // connection 是 metadb 连接
             DdlEngineAccessor engineAccessor = new DdlEngineAccessor();
             DdlEngineTaskAccessor engineTaskAccessor = new DdlEngineTaskAccessor();
             engineAccessor.setConnection(connection);
             engineTaskAccessor.setConnection(connection);
 
+            /** 怎么排队 job queue 的呢？*/
+            /** 存储 DdlJob 任务 到 metadb 系统表 ddl_engine */
             int count = engineAccessor.insert(jobRecord);
+            /** 存储 DdlJob 任务 到 metadb 系统表 ddl_engine_task */
             if (CollectionUtils.size(taskRecords) > 500) {
                 List<List<DdlEngineTaskRecord>> listList = split(taskRecords, 500);
                 for (List<DdlEngineTaskRecord> list : listList) {
@@ -178,11 +203,18 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
 
         final String schemaName = ddlContext.getSchemaName();
         Set<String> sharedResource = new HashSet<>(16);
+        // 一般sharedResource是test (database)
         addDefaultSharedResourceIfNecessary(sharedResource, ddlContext);
         sharedResource.addAll(ddlJob.getSharedResources());
 
         try {
+            /** 由于要在 metadb 内占用读写锁，现在内存中记录下抢锁情况，便于锁冲突监测 */
             DdlEngineResourceManager.startAcquiringLock(schemaName, ddlContext);
+            /**
+             * ExcludeResources 是要写的表；
+             * 事务方式存储 DdlJob 到 metadb;
+             * 需要先在 metadb 系统表 read_write_lock 上读写锁，
+             * 然后再 写入 storeDdlRecord 到 metadb 系统表 ddl_engine */
             getResourceManager().acquireResource(
                 schemaName,
                 jobId,
@@ -239,6 +271,13 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
         }
     }
 
+    /**
+     * 从metadb 中查询 DdlJob 完成状态;
+     *
+     * @param ddlResponse
+     * @param jobIds
+     * @return
+     */
     public boolean checkRecords(DdlResponse ddlResponse, List<Long> jobIds) {
         List<DdlEngineRecord> records = fetchRecords(jobIds);
 
@@ -298,19 +337,33 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
         return ddlRequest;
     }
 
+    /**
+     *
+     * @param jobId
+     * @param ddlJob
+     * @param ddlContext
+     * @return 状态是 QUEUED 的 DdlEngineRecord
+     *
+     */
     private DdlEngineRecord buildJobRecord(Long jobId, DdlJob ddlJob, DdlContext ddlContext) {
         DdlEngineRecord record = new DdlEngineRecord();
 
+        // 1534691155403341824
         record.jobId = jobId;
 
         record.ddlType = ddlContext.getDdlType().name();
         record.schemaName = ddlContext.getSchemaName();
         record.objectName = ddlContext.getObjectName();
+        // 2.2.2.2:8527, 8527 是polardb-x 服务的端口 serverPort
         record.responseNode = DdlHelper.getLocalServerKey();
+        // 2.2.2.2:8527
         record.executionNode = ExecUtils.getLeaderKey(null);
         record.traceId = ddlContext.getTraceId();
         record.state = DdlState.QUEUED.name();
         record.progress = 0;
+        /** 上下文参数与配置信息.
+         * 单库单表: {"@type":"com.alibaba.polardbx.optimizer.context.DdlContext","asyncMode":false,"dataPassed":{"@type":"java.util.HashMap","TEST_MODE":false,"CLIENT_IP":"127.0.0.1","TRACE_ID":"154d935525800000","CONNECTION_ID":2L,"TX_ID":1535045041913856000},"ddlStmt":"create table tb1 (id INTEGER NOT NULL, name VARCHAR(120))","ddlType":"CREATE_TABLE","enableTrace":false,"encoding":"utf8","extraCmds":{xxx}, "extraServerVariables":{"@type":"java.util.HashMap","pure_async_ddl_mode":false,"sockettimeout":-1,"read":"WRITE","batch_insert_policy":"SPLIT","sql_mock":false,"transaction policy":3,"trans.policy":"ALLOW_READ","drds_transaction_policy":"ALLOW_READ"},"jobId":1535046205166321664,"objectName":"tb1","resources":TreeSet["test.tb1"],"schemaName":"test","serverVariables":{"@type":"java.util.HashMap","sql_mode":"default","net_write_timeout":28800L,"time_zone":"SYSTEM"},"timeZone":"SYSTEM","traceId":"154d935525800000","userDefVariables":{"@type":"java.util.HashMap"},"usingWarning":false}
+         **/
         record.context = DdlSerializer.serializeToJSON(ddlContext);
         record.result = null;
         record.ddlStmt = ddlContext.getDdlStmt();
@@ -318,6 +371,7 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
         long currentTimestamp = System.currentTimeMillis();
         record.gmtCreated = currentTimestamp;
         record.gmtModified = currentTimestamp;
+        // 默认 1
         record.maxParallelism = ddlJob.getMaxParallelism();
         //default support continue/cancel
         record.setSupportCancel();
@@ -328,6 +382,13 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
         return record;
     }
 
+    /**
+     *
+     * @param jobId
+     * @param rootJobId 只有1个的话等于jobId
+     * @param ddlJob
+     * @return
+     */
     private List<DdlEngineTaskRecord> buildTaskRecords(Long jobId, Long rootJobId, DdlJob ddlJob) {
         if (jobId == null) {
             throw GeneralUtil.nestedException("unexpected error. jobId is null while initiating task record");
@@ -447,6 +508,11 @@ public class DdlJobManager extends DdlEngineSchedulerManager {
             "current ddl state:[%s] is not finished", currentState.name()));
     }
 
+    /**
+     * 一般sharedResource 是 DDL 涉及的 database;
+     * @param sharedResource
+     * @param ddlContext
+     */
     private void addDefaultSharedResourceIfNecessary(Set<String> sharedResource, DdlContext ddlContext) {
         if (ddlContext.isSubJob()) {
             return;

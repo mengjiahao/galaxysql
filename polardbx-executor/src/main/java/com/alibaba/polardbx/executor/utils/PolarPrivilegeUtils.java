@@ -52,6 +52,12 @@ public class PolarPrivilegeUtils {
         allowedSqlTypeOfDefaultDb.add(SqlType.SELECT);
     }
 
+    /**
+     * 检查执行权限;
+     *
+     * @param executionPlan
+     * @param executionContext
+     */
     public static void checkPrivilege(ExecutionPlan executionPlan, ExecutionContext executionContext) {
         // set privilegeVerifyItems to logicalPlan and clear
         // privilegeVerifyItems in privilegeContext

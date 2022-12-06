@@ -46,6 +46,9 @@ import org.apache.calcite.util.Pair;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Ast 解析树 SqlCreateTable 以及 参数数据;
+ */
 public class LogicalCreateTable extends LogicalTableOperation {
 
     private SqlCreateTable sqlCreateTable;

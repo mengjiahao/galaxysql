@@ -335,7 +335,8 @@ public class ToDrdsRelVisitor extends RelShuttleImpl {
     }
 
     /**
-     * 将 tableScan 替换为 LogicalView
+     * 将 tableScan 替换为 LogicalView；
+     * 注意 LogicalProject 最终也会调用到这;
      */
     @Override
     public final RelNode visit(TableScan scan) {
@@ -372,8 +373,16 @@ public class ToDrdsRelVisitor extends RelShuttleImpl {
         return scanOrLookup;
     }
 
+    /**
+     *
+     * @param scan
+     * @param tableName
+     * @param schemaName
+     * @return
+     */
     private RelNode buildTableAccess(TableScan scan, String tableName, String schemaName) {
         assert schemaName != null;
+        /** CalciteCatalogReader */
         final RelOptSchema catalog = RelUtils.buildCatalogReader(Optional.ofNullable(schemaName)
             .orElse(OptimizerContext.getContext(schemaName).getSchemaName()), plannerContext.getExecutionContext());
 
@@ -394,6 +403,11 @@ public class ToDrdsRelVisitor extends RelShuttleImpl {
                 }
             }
         }
+
+        /**
+         * INNODB;
+         * 注意这里也会获取元数据
+         **/
         final Engine engine = this.plannerContext.getExecutionContext()
             .getSchemaManager(schemaName).getTable(tableName).getEngine();
 

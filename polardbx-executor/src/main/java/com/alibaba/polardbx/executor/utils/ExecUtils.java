@@ -173,6 +173,9 @@ import static com.alibaba.polardbx.gms.module.LogPattern.INTERRUPTED;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
 
+/**
+ * 调用 单例的 操作方法；
+ */
 public class ExecUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(ExecUtils.class);
@@ -525,6 +528,13 @@ public class ExecUtils {
         }
     }
 
+    /**
+     *
+     * @param inTrans
+     * @param isWrite
+     * @param ec
+     * @return MASTER_ONLY/SLAVE_ONLY/READ_WEIGHT
+     */
     public static MasterSlave getMasterSlave(boolean inTrans, boolean isWrite, ExecutionContext ec) {
         MasterSlave masterSlaveVal = MasterSlave.READ_WEIGHT;
         if (isWrite) {
@@ -731,6 +741,7 @@ public class ExecUtils {
                 group = OptimizerContext.getContext(schemaName).getRuleManager().getDefaultDbIndex(null);
             }
         } else if (relNode instanceof BaseDdlOperation) {
+            // create table tb1 (id INTEGER NOT NULL, name VARCHAR(120)), group=TEST_SINGLE_GROUP;
             group = OptimizerContext.getContext(((BaseDdlOperation) relNode).getSchemaName())
                 .getRuleManager()
                 .getDefaultDbIndex(null);
@@ -1677,6 +1688,11 @@ public class ExecUtils {
         return context.getTraceId() + "_" + context.getSubqueryId();
     }
 
+    /**
+     * 本CN节点是否是Leader;
+     * @param schema
+     * @return
+     */
     public static boolean hasLeadership(String schema) {
         if (ServiceProvider.getInstance().getServer() != null) {
             InternalNode node = ServiceProvider.getInstance().getServer().getLocalNode();
@@ -1686,12 +1702,18 @@ public class ExecUtils {
         }
     }
 
+    /**
+     * 获取 coordinators 中 leader CN 节点;
+     * @param schema
+     * @return (ip:port)
+     */
     public static String getLeaderKey(String schema) {
         InternalNodeManager manager = ServiceProvider.getInstance().getServer().getNodeManager();
         if (manager != null) {
             List<Node> coordinators = manager.getAllCoordinators();
             if (coordinators != null && !coordinators.isEmpty()) {
                 for (Node node : coordinators) {
+                    // 从 coordinators 中挑选 leader
                     if (node.isLeader()) {
                         return node.getHost() + TddlNode.SEPARATOR_INNER + node.getPort();
                     }
